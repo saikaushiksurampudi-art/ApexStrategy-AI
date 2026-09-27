@@ -13,7 +13,8 @@ from functools import lru_cache
 from typing import List, Optional
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
+from typing_extensions import Annotated
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +63,15 @@ class Settings(BaseSettings):
 
     # --- Data ingestion --------------------------------------------------
     ergast_base_url: str = "https://api.jolpi.ca/ergast/f1"
-    ingest_seasons: List[int] = Field(default_factory=lambda: [2021, 2022, 2023, 2024, 2025])
+    # NoDecode: pydantic-settings would otherwise try to JSON-parse this value
+    # straight from the .env file and fail on a plain comma-separated list,
+    # before ``_split_list`` below ever gets a chance to handle it.
+    ingest_seasons: Annotated[List[int], NoDecode] = Field(
+        default_factory=lambda: [2021, 2022, 2023, 2024, 2025]
+    )
 
     # --- CORS ------------------------------------------------------------
-    cors_origins: List[str] = Field(
+    cors_origins: Annotated[List[str], NoDecode] = Field(
         default_factory=lambda: [
             "http://localhost:5173",
             "http://127.0.0.1:5173",

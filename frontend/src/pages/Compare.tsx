@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -33,6 +34,8 @@ import {
   StatTile,
 } from '../components/ui'
 import { FeedbackWidget } from '../components/FeedbackWidget'
+import { useAuth } from '../lib/auth'
+import { validateLabel } from '../lib/validation'
 import type { DriverSummary, HeadToHead } from '../lib/types'
 
 // Driver A / driver B are not teams, so they use the validated categorical
@@ -66,6 +69,7 @@ export default function Compare() {
   const [driverB, setDriverB] = useState('')
   const [query, setQuery] = useState<{ a: string; b: string } | null>(null)
   const [seasons, setSeasons] = useState<number[]>([])
+  const [searchParams] = useSearchParams()
 
   const meta = useApi(() => api.meta(), [])
   const drivers = useApi(() => api.drivers(), [])
@@ -76,16 +80,21 @@ export default function Compare() {
     { enabled: query !== null },
   )
 
-  // Seed both pickers once the driver list arrives.
+  // Seed both pickers once the driver list arrives. URL parameters win, so a
+  // saved comparison opens exactly as it was stored.
   useEffect(() => {
     if (!drivers.data || driverA) return
     const refs = drivers.data.map((driver) => driver.ref)
-    const a = pickDefault(refs, PREFERRED_A, 0)
-    const b = pickDefault(refs, PREFERRED_B, 1, a)
+    const fromUrlA = searchParams.get('a')
+    const fromUrlB = searchParams.get('b')
+    const a =
+      fromUrlA && refs.includes(fromUrlA) ? fromUrlA : pickDefault(refs, PREFERRED_A, 0)
+    const b =
+      fromUrlB && refs.includes(fromUrlB) ? fromUrlB : pickDefault(refs, PREFERRED_B, 1, a)
     setDriverA(a)
     setDriverB(b)
     setQuery({ a, b })
-  }, [drivers.data, driverA])
+  }, [drivers.data, driverA, searchParams])
 
   const allSeasons = meta.data?.seasons ?? []
 
@@ -161,7 +170,9 @@ export default function Compare() {
       {comparison.error ? (
         <ErrorState message={comparison.error} onRetry={comparison.reload} />
       ) : null}
-      {comparison.data ? <ComparisonBody data={comparison.data} /> : null}
+      {comparison.data && query ? (
+        <ComparisonBody data={comparison.data} refs={query} />
+      ) : null}
     </div>
   )
 }
@@ -193,7 +204,13 @@ function DriverPicker({
 }
 
 /* ------------------------------------------------------------------ */
-function ComparisonBody({ data }: { data: HeadToHead }) {
+function ComparisonBody({
+  data,
+  refs,
+}: {
+  data: HeadToHead
+  refs: { a: string; b: string }
+}) {
   const { driver_a: a, driver_b: b } = data
 
   if (data.shared_races === 0) {
@@ -239,12 +256,18 @@ function ComparisonBody({ data }: { data: HeadToHead }) {
       <RecordChart a={a} b={b} />
       <PositionTimeline data={data} />
 
-      <Card className="card-pad">
-        <FeedbackWidget
-          surface="comparison"
-          referenceId={`${a.ref}-vs-${b.ref}`}
-          context={{ shared_races: data.shared_races, seasons: a.seasons }}
+      <Card className="card-pad space-y-4">
+        <SaveComparison
+          refs={refs}
+          defaultLabel={`${a.name} vs ${b.name}`}
         />
+        <div className="border-t border-line pt-3">
+          <FeedbackWidget
+            surface="comparison"
+            referenceId={`${a.ref}-vs-${b.ref}`}
+            context={{ shared_races: data.shared_races, seasons: a.seasons }}
+          />
+        </div>
       </Card>
     </div>
   )
@@ -460,5 +483,117 @@ function PositionTimeline({ data }: { data: HeadToHead }) {
         </LineChart>
       </ResponsiveContainer>
     </ChartFrame>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/**
+ * Save the current comparison. Requires an account, so anonymous visitors are
+ * shown what the feature does and where to sign in rather than a dead button.
+ */
+function SaveComparison({
+  refs,
+  defaultLabel,
+}: {
+  refs: { a: string; b: string }
+  defaultLabel: string
+}) {
+  const { user } = useAuth()
+  const [open, setOpen] = useState(false)
+  const [label, setLabel] = useState(defaultLabel)
+  const [touched, setTouched] = useState(false)
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setLabel(defaultLabel)
+    setStatus('idle')
+  }, [defaultLabel])
+
+  if (!user) {
+    return (
+      <p className="text-xs text-ink-muted">
+        <Link to="/account" className="text-series-1 hover:underline">
+          Sign in
+        </Link>{' '}
+        to save this comparison and revisit it later.
+      </p>
+    )
+  }
+
+  const labelError = validateLabel(label, 'Label')
+
+  const save = async () => {
+    setTouched(true)
+    if (labelError) return
+    setStatus('saving')
+    setError(null)
+    try {
+      await api.saveComparison(label.trim(), 'driver', refs)
+      setStatus('saved')
+      setOpen(false)
+    } catch (err) {
+      setStatus('idle')
+      setError(err instanceof Error ? err.message : 'Could not save')
+    }
+  }
+
+  if (status === 'saved') {
+    return (
+      <p className="text-xs text-status-good">
+        Saved.{' '}
+        <Link to="/account" className="text-series-1 hover:underline">
+          View your saved comparisons
+        </Link>
+        .
+      </p>
+    )
+  }
+
+  return (
+    <div>
+      {open ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+          <div className="flex-1">
+            <input
+              className={`input ${touched && labelError ? '!border-status-bad' : ''}`}
+              value={label}
+              maxLength={160}
+              aria-label="Comparison label"
+              aria-invalid={touched && labelError ? true : undefined}
+              onChange={(event) => setLabel(event.target.value)}
+              onBlur={() => setTouched(true)}
+            />
+            {touched && labelError ? (
+              <p role="alert" className="mt-1.5 text-xs text-status-bad">
+                {labelError}
+              </p>
+            ) : null}
+            {error ? (
+              <p role="alert" className="mt-1.5 text-xs text-status-bad">
+                {error}
+              </p>
+            ) : null}
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={save}
+              disabled={status === 'saving'}
+            >
+              {status === 'saving' ? 'Saving…' : 'Save'}
+            </button>
+            <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" className="btn-ghost" onClick={() => setOpen(true)}>
+          Save comparison
+        </button>
+      )}
+    </div>
   )
 }

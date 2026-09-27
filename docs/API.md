@@ -197,9 +197,14 @@ endpoint does not confirm that someone else's record exists.
 | `POST` | `/auth/login` | Exchange credentials for a JWT |
 | `GET` | `/auth/me` | Current user |
 
-Passwords are bcrypt-hashed. Login returns the same error message whether the
-email is unknown or the password is wrong, so the endpoint does not disclose
-which addresses are registered.
+Passwords are bcrypt-hashed (minimum 8 characters, enforced on both the client
+and the server). Login returns the same error message whether the email is
+unknown or the password is wrong, so the endpoint does not disclose which
+addresses are registered.
+
+The token is stored in `localStorage` and re-validated against `/auth/me` on
+page load, so a revoked or expired token signs the user out rather than leaving
+the UI in a falsely authenticated state.
 
 ---
 

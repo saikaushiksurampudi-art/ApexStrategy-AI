@@ -1,4 +1,6 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
+import { AuthProvider, useAuth } from './lib/auth'
+import Account from './pages/Account'
 import Dashboard from './pages/Dashboard'
 import Compare from './pages/Compare'
 import Circuits from './pages/Circuits'
@@ -17,6 +19,32 @@ const NAV = [
 ]
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <Shell />
+    </AuthProvider>
+  )
+}
+
+function AccountLink() {
+  const { user, loading } = useAuth()
+  return (
+    <NavLink
+      to="/account"
+      className={({ isActive }) =>
+        `whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+          isActive
+            ? 'bg-surface-2 text-ink-primary'
+            : 'text-ink-secondary hover:bg-surface-1 hover:text-ink-primary'
+        }`
+      }
+    >
+      {loading ? '…' : user ? (user.display_name || 'Account') : 'Sign in'}
+    </NavLink>
+  )
+}
+
+function Shell() {
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-20 border-b border-line bg-surface-0/95 backdrop-blur">
@@ -53,6 +81,8 @@ export default function App() {
                 {item.label}
               </NavLink>
             ))}
+            <span aria-hidden="true" className="mx-1 w-px shrink-0 self-stretch bg-line" />
+            <AccountLink />
           </nav>
         </div>
       </header>
@@ -66,6 +96,7 @@ export default function App() {
           <Route path="/predictions" element={<Predictions />} />
           <Route path="/analyst" element={<Analyst />} />
           <Route path="/model" element={<ModelPage />} />
+          <Route path="/account" element={<Account />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>

@@ -205,4 +205,22 @@ export const api = {
       { method: 'POST', body: JSON.stringify({ email, password }) },
     ),
   me: () => request<{ id: number; email: string; display_name: string }>('/auth/me'),
+
+  savedComparisons: () =>
+    request<
+      Array<{
+        id: number
+        label: string
+        kind: string
+        payload: Record<string, unknown>
+        created_at: string
+      }>
+    >('/saved'),
+  saveComparison: (label: string, kind: 'driver' | 'constructor', payload: Record<string, unknown>) =>
+    request<{ id: number }>('/saved', {
+      method: 'POST',
+      body: JSON.stringify({ label, kind, payload }),
+    }),
+  deleteSavedComparison: (id: number) =>
+    request<void>(`/saved/${id}`, { method: 'DELETE' }),
 }

@@ -11,6 +11,7 @@ import { api } from '../lib/api'
 import { useApi } from '../hooks/useApi'
 import { Badge, Card, Loading, SectionTitle } from '../components/ui'
 import { FeedbackWidget } from '../components/FeedbackWidget'
+import { MAX_QUESTION_LENGTH, validateQuestion } from '../lib/validation'
 import type { ChatResponse } from '../lib/types'
 
 interface Turn {
@@ -36,8 +37,14 @@ export default function Analyst() {
   }, [turns, pending])
 
   const send = async (question: string) => {
+    if (pending) return
     const trimmed = question.trim()
-    if (!trimmed || pending) return
+
+    const validationError = validateQuestion(trimmed)
+    if (validationError) {
+      setError(validationError)
+      return
+    }
 
     setInput('')
     setError(null)
@@ -96,7 +103,11 @@ export default function Analyst() {
           )}
 
           {pending ? <Loading label="Retrieving the data…" /> : null}
-          {error ? <p className="text-sm text-status-bad">{error}</p> : null}
+          {error ? (
+            <p id="question-error" role="alert" className="text-sm text-status-bad">
+              {error}
+            </p>
+          ) : null}
           <div ref={endRef} />
         </div>
 
@@ -107,15 +118,32 @@ export default function Analyst() {
             void send(input)
           }}
         >
-          <input
-            className="input"
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask about a driver, a team, a circuit or the next race…"
-            aria-label="Your question"
-            disabled={pending}
-          />
-          <button type="submit" className="btn-primary" disabled={pending || !input.trim()}>
+          <div className="flex-1">
+            <input
+              className={`input ${error ? '!border-status-bad' : ''}`}
+              value={input}
+              maxLength={MAX_QUESTION_LENGTH}
+              onChange={(event) => {
+                setInput(event.target.value)
+                if (error) setError(null)
+              }}
+              placeholder="Ask about a driver, a team, a circuit or the next race…"
+              aria-label="Your question"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'question-error' : undefined}
+              disabled={pending}
+            />
+            {input.length > MAX_QUESTION_LENGTH - 100 ? (
+              <p className="mt-1 text-right text-xs text-ink-muted">
+                {MAX_QUESTION_LENGTH - input.length} characters left
+              </p>
+            ) : null}
+          </div>
+          <button
+            type="submit"
+            className="btn-primary self-start"
+            disabled={pending || !input.trim()}
+          >
             Ask
           </button>
         </form>

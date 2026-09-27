@@ -4,9 +4,9 @@ SHELL := /bin/bash
 PY := backend/.venv/bin/python
 PIP := backend/.venv/bin/pip
 
-.PHONY: help setup install-backend install-frontend ingest train test test-frontend \
-        lint dev-backend dev-frontend build docker-build docker-up docker-down \
-        migrate clean bootstrap
+.PHONY: help setup install-backend install-frontend ingest train test test-cov \
+        test-frontend test-all lint dev-backend dev-frontend build docker-build \
+        docker-up docker-down migrate clean bootstrap
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -37,8 +37,10 @@ test: ## Run the backend test suite
 test-cov: ## Run the backend tests with a coverage report
 	cd backend && .venv/bin/python -m pytest --cov=app --cov-report=term-missing
 
-test-frontend: ## Type-check the frontend
-	cd frontend && npm run lint
+test-frontend: ## Type-check and unit-test the frontend
+	cd frontend && npm run lint && npm test
+
+test-all: test test-frontend ## Run every test suite
 
 lint: ## Lint the backend
 	cd backend && .venv/bin/ruff check app scripts tests

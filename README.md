@@ -22,6 +22,7 @@ source for, and it never presents a probability as a prediction.**
 | **AI Race Analyst** | Natural-language questions answered only from data held in the app, with citations |
 | **Model transparency** | How the model was trained and how it scores against baselines on unseen seasons |
 | **Feedback loop** | Per-answer ratings with a follow-up reason, aggregated to find weak explanations |
+| **Accounts** *(optional)* | Sign in to save comparisons and reopen them later. Nothing else is gated. |
 
 ---
 
@@ -34,21 +35,47 @@ fluently.
 ```bash
 git clone <your-repo-url> && cd ApexStrategy-AI
 
-make setup        # create the venv, install Python and Node dependencies
-make bootstrap    # download 5 seasons of real F1 data, then train the model
-make dev-backend  # API on http://localhost:8000
+cp .env.example backend/.env   # optional: defaults work without it
+make setup                     # venv + Python and Node dependencies
+make bootstrap                 # download 5 seasons of data, then train
 ```
 
-In a second terminal:
+Then start the two dev servers, one per terminal:
 
 ```bash
-make dev-frontend # UI on http://localhost:5173
+# Terminal 1 — API on http://localhost:8000
+make dev-backend
+
+# Terminal 2 — UI on http://localhost:5173  ← open this one
+make dev-frontend
 ```
+
+Open **<http://localhost:5173>**. The Vite dev server proxies `/api` to the
+backend, so both run on the same origin and no CORS setup is needed.
 
 `make bootstrap` takes a few minutes: it pulls roughly 2,300 race results,
 2,300 qualifying results and 4,000 pit stops from the Ergast/Jolpica F1 API,
 then trains and evaluates the model. Responses are cached on disk, so re-runs
 are fast and offline.
+
+### Single-service mode
+
+To run exactly as it deploys — one FastAPI process serving both the API and the
+compiled React bundle:
+
+```bash
+make build        # compile the frontend into frontend/dist
+make dev-backend  # everything on http://localhost:8000
+```
+
+### Verifying it worked
+
+```bash
+curl -s localhost:8000/api/health | python3 -m json.tool
+```
+
+`status` should be `ok`, `database.races` should be `114`, and `model.available`
+should be `true`.
 
 ### With Docker
 
@@ -134,9 +161,11 @@ ApexStrategy-AI/
 │   ├── scripts/               ingest.py, train_model.py
 │   └── tests/                 91 tests
 ├── frontend/src/
-│   ├── pages/                 Dashboard, Compare, Circuits, Predictions, Analyst, Model
-│   ├── components/            UI primitives, chart frame, feedback widget
-│   └── lib/                   API client, types, formatting, palette
+│   ├── pages/                 Dashboard, Compare, Circuits, Predictions,
+│   │                          Analyst, Model, Account
+│   ├── components/            UI primitives, chart frame, form field, feedback
+│   └── lib/                   API client, auth context, validation, palette
+│       └── __tests__/         Validation unit tests (vitest)
 ├── docs/                      MODEL.md, DEPLOYMENT.md, API.md, DESIGN.md
 ├── infra/iam-policy.json      Least-privilege instance role
 ├── Dockerfile                 Multi-stage: Node build → Python runtime
@@ -192,9 +221,10 @@ This is built into the product, not bolted on:
 ## Development
 
 ```bash
-make test          # 91 backend tests
-make test-cov      # with coverage
-make test-frontend # TypeScript type check
+make test-all      # 103 backend tests + 27 frontend tests
+make test          # backend only
+make test-cov      # backend with coverage
+make test-frontend # TypeScript type check + vitest
 make lint          # ruff
 make migrate       # alembic upgrade head
 ```
