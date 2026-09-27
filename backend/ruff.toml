@@ -1,0 +1,17 @@
+line-length = 100
+target-version = "py39"
+
+[lint]
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",   # line length is handled by the formatter, not enforced here
+    "B008",   # FastAPI's Depends() in defaults is the documented pattern
+    "UP006",  # keep typing.List/Dict: the app targets Python 3.9
+    "UP007",  # keep Optional[X] rather than X | None, for the same reason
+    "UP035",
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["E402"]
+"migrations/*" = ["E402", "F401", "I001"]
+"scripts/*" = ["E402"]

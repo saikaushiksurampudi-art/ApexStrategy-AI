@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-surface-0 text-ink-primary font-sans antialiased;
+  }
+
+  /* Recharts renders focusable surfaces; keep the focus ring visible but calm. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-series-1 ring-offset-2 ring-offset-surface-0;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-0;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-3 rounded-full;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-line-strong;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-surface-1 border border-line rounded-xl;
+  }
+
+  .card-pad {
+    @apply p-4 sm:p-5;
+  }
+
+  .label-muted {
+    @apply text-xs uppercase tracking-wider text-ink-muted font-medium;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2
+           text-sm font-medium transition-colors disabled:opacity-40
+           disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-series-1 text-white hover:bg-[#2f72c4];
+  }
+
+  .btn-ghost {
+    @apply btn bg-surface-2 text-ink-secondary hover:bg-surface-3 hover:text-ink-primary
+           border border-line;
+  }
+
+  .input {
+    @apply w-full bg-surface-2 border border-line rounded-lg px-3 py-2 text-sm
+           text-ink-primary placeholder:text-ink-muted
+           focus:border-series-1 focus:outline-none;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-surface-2 border
+           border-line px-2.5 py-1 text-xs text-ink-secondary;
+  }
+}

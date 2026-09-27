@@ -1,0 +1,51 @@
+# AWS App Runner service configuration.
+#
+# This file applies to *source-code* deployments. When deploying a container
+# image from ECR instead (the path the GitHub Actions workflow takes), the port,
+# environment and health check are configured on the App Runner service itself
+# rather than here -- see docs/DEPLOYMENT.md.
+
+version: 1.0
+runtime: python3
+
+build:
+  commands:
+    pre-build:
+      # Build the React bundle so FastAPI can serve it as static files.
+      - echo "Building frontend..."
+      - cd frontend && npm ci --no-audit --no-fund && npm run build && cd ..
+    build:
+      - echo "Installing backend dependencies..."
+      - pip install -r backend/requirements-postgres.txt
+  env:
+    - name: NODE_VERSION
+      value: '22'
+
+run:
+  runtime-version: 3.11
+  command: >-
+    sh -c "cd backend &&
+    uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2 --proxy-headers"
+  network:
+    port: 8000
+    env: PORT
+  env:
+    - name: ENVIRONMENT
+      value: production
+    - name: DEBUG
+      value: 'false'
+    - name: FRONTEND_DIST
+      value: /app/frontend/dist
+    - name: AWS_REGION
+      value: us-east-1
+    - name: ENABLE_BEDROCK
+      value: 'true'
+    - name: BEDROCK_MODEL_ID
+      value: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+  secrets:
+    # Values are ARNs of AWS Secrets Manager secrets, resolved at start-up.
+    # Nothing sensitive is stored in this file or in the image.
+    - name: DB_SECRET_ARN
+      value: arn:aws:secretsmanager:us-east-1:000000000000:secret:apexstrategy/database
+    - name: JWT_SECRET
+      value: arn:aws:secretsmanager:us-east-1:000000000000:secret:apexstrategy/jwt

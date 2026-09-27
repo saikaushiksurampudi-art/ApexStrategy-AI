@@ -1,0 +1,3 @@
+# PostgreSQL driver -- required for Amazon RDS, not for local SQLite development.
+-r requirements.txt
+psycopg2-binary==2.9.10

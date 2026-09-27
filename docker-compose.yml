@@ -1,0 +1,49 @@
+# Local development stack: PostgreSQL plus the containerised application.
+# This mirrors the AWS topology (App Runner + RDS) closely enough to catch
+# Postgres-specific issues that SQLite would hide.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: apex-db
+    environment:
+      POSTGRES_USER: apex
+      POSTGRES_PASSWORD: apex_local_password
+      POSTGRES_DB: apexstrategy
+    ports:
+      - '5432:5432'
+    volumes:
+      - apex-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U apex -d apexstrategy']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apex-app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg2://apex:apex_local_password@db:5432/apexstrategy
+      ENVIRONMENT: development
+      DEBUG: 'true'
+      PORT: '8000'
+      # Set ENABLE_BEDROCK=true and provide AWS credentials to use the LLM.
+      ENABLE_BEDROCK: ${ENABLE_BEDROCK:-false}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-us.anthropic.claude-sonnet-4-5-20250929-v1:0}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me}
+    ports:
+      - '8000:8000'
+    volumes:
+      # Persist ingested raw data and trained models across container restarts.
+      - ./backend/data:/app/backend/data
+      - ./backend/artifacts:/app/backend/artifacts
+
+volumes:
+  apex-pgdata:

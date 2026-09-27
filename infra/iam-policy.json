@@ -1,0 +1,39 @@
+{
+  "//": "Least-privilege policy for the App Runner *instance* role. Attach to the role referenced by APPRUNNER_INSTANCE_ROLE_ARN. Every resource ARN is scoped to this application's own resources -- no wildcards on the account.",
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InvokeBedrockModels",
+      "Effect": "Allow",
+      "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "arn:aws:bedrock:us-east-1:ACCOUNT_ID:inference-profile/us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+      ]
+    },
+    {
+      "Sid": "ReadDatabaseAndJwtSecrets",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue"],
+      "Resource": [
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:apexstrategy/database-*",
+        "arn:aws:secretsmanager:us-east-1:ACCOUNT_ID:secret:apexstrategy/jwt-*"
+      ]
+    },
+    {
+      "Sid": "ReadWriteApplicationBucket",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:ListBucket"],
+      "Resource": [
+        "arn:aws:s3:::apexstrategy-artifacts",
+        "arn:aws:s3:::apexstrategy-artifacts/*"
+      ]
+    },
+    {
+      "Sid": "WriteApplicationLogs",
+      "Effect": "Allow",
+      "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+      "Resource": "arn:aws:logs:us-east-1:ACCOUNT_ID:log-group:/aws/apprunner/apexstrategy-ai:*"
+    }
+  ]
+}

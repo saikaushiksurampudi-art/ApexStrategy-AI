@@ -1,0 +1,81 @@
+name: Deploy to AWS App Runner
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Deployment uses an OIDC role rather than long-lived access keys, so no AWS
+# credentials are ever stored in GitHub.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: apexstrategy-ai
+  APP_RUNNER_SERVICE: apexstrategy-ai
+
+jobs:
+  deploy:
+    name: Build, push and deploy
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: build
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE="$REGISTRY/$ECR_REPOSITORY"
+          docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" .
+          docker push "$IMAGE:$IMAGE_TAG"
+          docker push "$IMAGE:latest"
+          echo "image=$IMAGE:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to App Runner
+        uses: awslabs/amazon-app-runner-deploy@main
+        with:
+          service: ${{ env.APP_RUNNER_SERVICE }}
+          image: ${{ steps.build.outputs.image }}
+          access-role-arn: ${{ secrets.APPRUNNER_ECR_ACCESS_ROLE_ARN }}
+          instance-role-arn: ${{ secrets.APPRUNNER_INSTANCE_ROLE_ARN }}
+          region: ${{ env.AWS_REGION }}
+          port: 8000
+          # App Runner removes an instance from the load balancer if this path
+          # stops returning 200, so it must never depend on Bedrock or S3.
+          health-check-path: /api/health
+          cpu: 1
+          memory: 2
+          wait-for-service-stability-seconds: 600
+          copy-env-vars: |
+            ENVIRONMENT
+            DEBUG
+            AWS_REGION
+            ENABLE_BEDROCK
+            BEDROCK_MODEL_ID
+            S3_BUCKET
+          copy-secret-env-vars: |
+            DB_SECRET_ARN
+            JWT_SECRET
+        env:
+          ENVIRONMENT: production
+          DEBUG: 'false'
+          ENABLE_BEDROCK: 'true'
+          BEDROCK_MODEL_ID: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          DB_SECRET_ARN: ${{ secrets.DB_SECRET_ARN }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET_ARN }}
