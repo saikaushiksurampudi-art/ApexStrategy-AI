@@ -19,7 +19,7 @@ import { api } from '../lib/api'
 import { useApi } from '../hooks/useApi'
 import { num, pct, seasonRange, titleCase } from '../lib/format'
 import { axisProps, ChartFrame, gridProps, TooltipCard } from '../components/charts'
-import { SERIES, teamColor } from '../lib/palette'
+import { SERIES } from '../lib/palette'
 import {
   Badge,
   Card,
@@ -29,9 +29,10 @@ import {
   Loading,
   SectionTitle,
   StatTile,
-  TeamDot,
 } from '../components/ui'
 import { FeedbackWidget } from '../components/FeedbackWidget'
+import { DriverAvatar } from '../components/DriverAvatar'
+import { Reveal } from '../lib/motion'
 import type { CircuitHistory } from '../lib/types'
 
 export default function Circuits() {
@@ -71,7 +72,11 @@ export default function Circuits() {
 
       {detail.loading ? <Loading /> : null}
       {detail.error ? <ErrorState message={detail.error} onRetry={detail.reload} /> : null}
-      {detail.data ? <CircuitBody data={detail.data} /> : null}
+      {detail.data ? (
+        <Reveal>
+          <CircuitBody data={detail.data} />
+        </Reveal>
+      ) : null}
     </div>
   )
 }
@@ -353,7 +358,10 @@ function TopDriversTable({ data }: { data: CircuitHistory }) {
             {data.top_drivers.map((driver) => (
               <tr key={driver.driver_id} className="border-b border-line/60 last:border-0">
                 <td className="px-4 py-2">
-                  <TeamDot color={teamColor(driver.color)} label={driver.name} />
+                  <span className="flex items-center gap-2.5">
+                    <DriverAvatar driver={driver} size="sm" />
+                    <span className="truncate">{driver.name}</span>
+                  </span>
                 </td>
                 <td className="px-4 py-2 text-ink-secondary">{driver.constructor}</td>
                 <td className="tabular px-4 py-2 text-right">{driver.starts}</td>
@@ -389,8 +397,9 @@ function WinnersList({ data }: { data: CircuitHistory }) {
             className="flex items-center gap-3 px-4 py-2.5 text-sm sm:px-5"
           >
             <span className="tabular w-12 shrink-0 text-ink-muted">{winner.season}</span>
-            <span className="min-w-0 flex-1">
-              <TeamDot color={teamColor(winner.color)} label={winner.driver} />
+            <span className="flex min-w-0 flex-1 items-center gap-2.5">
+              <DriverAvatar driver={{ ...winner, name: winner.driver }} size="sm" />
+              <span className="truncate">{winner.driver}</span>
             </span>
             <span className="hidden shrink-0 text-xs text-ink-secondary sm:block">
               {winner.constructor}

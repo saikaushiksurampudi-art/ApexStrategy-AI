@@ -15,6 +15,27 @@
 
   body {
     @apply bg-surface-0 text-ink-primary font-sans antialiased;
+    /* A faint two-point glow so the page is not a flat slab of near-black. */
+    background-image:
+      radial-gradient(900px 500px at 12% -8%, rgba(232, 0, 45, 0.10), transparent 60%),
+      radial-gradient(800px 460px at 88% -4%, rgba(57, 135, 229, 0.10), transparent 62%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3 {
+    @apply font-display tracking-tight;
+  }
+
+  /* Anyone who asks for less motion gets none of the ambient loops. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 
   /* Recharts renders focusable surfaces; keep the focus ring visible but calm. */
@@ -39,7 +60,14 @@
 
 @layer components {
   .card {
-    @apply bg-surface-1 border border-line rounded-xl;
+    @apply rounded-xl border border-line bg-surface-1/90 backdrop-blur-sm;
+  }
+
+  /* Cards that respond to the pointer. Used for anything clickable. */
+  .card-interactive {
+    @apply card transition-all duration-300
+           hover:-translate-y-0.5 hover:border-line-strong
+           hover:shadow-[0_10px_30px_-12px_rgba(0,0,0,0.7)];
   }
 
   .card-pad {
@@ -61,7 +89,15 @@
   }
 
   .btn-primary {
-    @apply btn bg-series-1 text-white hover:bg-[#2f72c4];
+    @apply btn bg-series-1 text-white shadow-lg shadow-series-1/20
+           transition-all hover:bg-[#2f72c4] hover:shadow-series-1/30
+           active:scale-[0.98];
+  }
+
+  .btn-accent {
+    @apply btn bg-accent text-white shadow-lg shadow-accent/25
+           transition-all hover:brightness-110 hover:shadow-accent/40
+           active:scale-[0.98];
   }
 
   .btn-ghost {
@@ -78,5 +114,43 @@
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full bg-surface-2 border
            border-line px-2.5 py-1 text-xs text-ink-secondary;
+  }
+}
+
+@layer components {
+  /* Diagonal racing stripes, used as a hero/section motif. */
+  .stripes {
+    background-image: repeating-linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.045) 0px,
+      rgba(255, 255, 255, 0.045) 2px,
+      transparent 2px,
+      transparent 11px
+    );
+  }
+
+  /* Checkered-flag band, drawn with gradients rather than an image. */
+  .checkers {
+    background-image:
+      linear-gradient(45deg, rgba(255, 255, 255, 0.10) 25%, transparent 25%,
+        transparent 75%, rgba(255, 255, 255, 0.10) 75%),
+      linear-gradient(45deg, rgba(255, 255, 255, 0.10) 25%, transparent 25%,
+        transparent 75%, rgba(255, 255, 255, 0.10) 75%);
+    background-size: 14px 14px;
+    background-position: 0 0, 7px 7px;
+  }
+
+  .text-gradient {
+    @apply bg-gradient-to-br from-white via-white to-ink-muted bg-clip-text text-transparent;
+  }
+
+  /* Thin leading rule in a team/series colour. */
+  .accent-rule {
+    @apply relative overflow-hidden;
+  }
+  .accent-rule::before {
+    content: '';
+    @apply absolute inset-y-0 left-0 w-[3px];
+    background: currentColor;
   }
 }

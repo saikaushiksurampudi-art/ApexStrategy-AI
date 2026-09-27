@@ -133,6 +133,57 @@ disclaimer to bury:
 
 ---
 
+## Motion
+
+Animation is used to direct attention and to make numbers feel measured rather
+than asserted — never as decoration for its own sake.
+
+| Effect | Where | Why |
+|---|---|---|
+| Scroll reveal | Section blocks | Gives the eye an order to read a dense page in |
+| Count-up | Hero stats, points, probabilities | A number that climbs reads as *measured*; it also draws the eye to the figure that matters |
+| Bar growth | Probability meters | Shows magnitude accumulating rather than appearing fully formed |
+| Hover lift | Interactive cards | Signals that a card is clickable before it is clicked |
+| Ambient drift / speed sweep | Hero background only | Motorsport atmosphere, kept out of anything carrying data |
+
+### Two rules the motion layer obeys
+
+**1. It respects `prefers-reduced-motion`.** Large sliding and parallax motion
+is genuinely unpleasant for people with vestibular disorders, so the reduced
+path is not a degraded experience — it renders the same content immediately.
+A global CSS rule collapses every transition and animation, and each motion
+primitive checks the media query in JavaScript too, so counters jump straight
+to their final value instead of animating to it. Verified: under
+`reduced_motion: reduce` the dashboard reports **0 animating elements and 0
+hidden blocks**.
+
+**2. It fails open.** Scroll-revealed content sits at `opacity: 0` until an
+IntersectionObserver fires. If that observer never fires — an
+`overflow: hidden` ancestor, an old browser, a print or screenshot context —
+the content would be hidden permanently. Every reveal therefore carries a
+2.5-second safety timer that shows the content regardless. **Content is never
+sacrificed to an effect.**
+
+---
+
+## Driver portraits
+
+Portraits come from Wikimedia Commons, resolved from the Wikipedia article each
+driver row already links to. 34 of 35 drivers have one.
+
+- **Licences are respected.** Every image is CC BY, CC BY-SA or CC0. The author
+  and licence are stored in the database next to the URL and rendered wherever
+  the portrait appears at a prominent size, because nearly all of these licences
+  require attribution.
+- **The fallback is a first-class path, not an error state.** A driver without a
+  portrait gets a monogram — their three-letter code on a gradient derived from
+  their team colour. `onError` falls back the same way, so a dead remote image
+  never leaves a broken-image box.
+- **Portraits never carry information.** They sit beside the name, never instead
+  of it, so nothing is lost when one is missing.
+
+---
+
 ## Accessibility
 
 - All body text meets WCAG AA against its surface.

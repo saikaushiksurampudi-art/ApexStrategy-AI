@@ -87,6 +87,14 @@ class Driver(Base):
     nationality: Mapped[Optional[str]] = mapped_column(String(80))
     url: Mapped[Optional[str]] = mapped_column(String(400))
 
+    # Portrait sourced from Wikimedia Commons. Licence and author are stored
+    # alongside the URL because these images are freely licensed but nearly all
+    # require attribution, which the UI renders next to the photo.
+    image_url: Mapped[Optional[str]] = mapped_column(String(600))
+    image_author: Mapped[Optional[str]] = mapped_column(String(300))
+    image_license: Mapped[Optional[str]] = mapped_column(String(120))
+    image_license_url: Mapped[Optional[str]] = mapped_column(String(400))
+
     results: Mapped[List[RaceResult]] = relationship(back_populates="driver")
 
     @property

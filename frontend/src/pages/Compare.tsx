@@ -26,7 +26,6 @@ import { axisProps, ChartFrame, gridProps, LegendItem, TooltipCard } from '../co
 import { SERIES } from '../lib/palette'
 import {
   Card,
-  CardHeader,
   EmptyState,
   ErrorState,
   Loading,
@@ -34,6 +33,8 @@ import {
   StatTile,
 } from '../components/ui'
 import { FeedbackWidget } from '../components/FeedbackWidget'
+import { DriverAvatar, PortraitCredit } from '../components/DriverAvatar'
+import { Reveal } from '../lib/motion'
 import { useAuth } from '../lib/auth'
 import { validateLabel } from '../lib/validation'
 import type { DriverSummary, HeadToHead } from '../lib/types'
@@ -249,8 +250,12 @@ function ComparisonBody({
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <DriverCard summary={a} color={COLOR_A} />
-        <DriverCard summary={b} color={COLOR_B} />
+        <Reveal>
+          <DriverCard summary={a} color={COLOR_A} />
+        </Reveal>
+        <Reveal delay={90}>
+          <DriverCard summary={b} color={COLOR_B} />
+        </Reveal>
       </div>
 
       <RecordChart a={a} b={b} />
@@ -288,20 +293,23 @@ function DriverCard({ summary, color }: { summary: DriverSummary; color: string 
   ]
 
   return (
-    <Card>
-      <CardHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="h-2.5 w-2.5 rounded-sm"
-              style={{ backgroundColor: color }}
-            />
-            {summary.name}
-          </span>
-        }
-        subtitle={`${summary.constructor ?? 'Unknown team'} · ${seasonRange(summary.seasons)}`}
+    <Card className="overflow-hidden">
+      <div
+        aria-hidden="true"
+        className="h-[3px] w-full"
+        style={{ background: `linear-gradient(90deg, ${color}, transparent)` }}
       />
+      <div className="flex items-center gap-4 border-b border-line px-4 py-4 sm:px-5">
+        <DriverAvatar driver={summary} size="lg" />
+        <div className="min-w-0">
+          <h2 className="truncate font-display text-lg font-bold">{summary.name}</h2>
+          <p className="truncate text-sm" style={{ color }}>
+            {summary.constructor ?? 'Unknown team'}
+          </p>
+          <p className="text-xs text-ink-muted">{seasonRange(summary.seasons)}</p>
+          <PortraitCredit driver={summary} className="mt-1" />
+        </div>
+      </div>
       <dl className="grid grid-cols-2 gap-px bg-line">
         {rows.map(([label, value]) => (
           <div key={label} className="bg-surface-1 px-4 py-2.5">

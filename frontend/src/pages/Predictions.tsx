@@ -10,8 +10,9 @@ import { useState } from 'react'
 import { api } from '../lib/api'
 import { useApi } from '../hooks/useApi'
 import { formatDate, num, pct, signed } from '../lib/format'
-import { ProbabilityMeter } from '../components/charts'
-import { SERIES, teamColor } from '../lib/palette'
+import { DriverAvatar } from '../components/DriverAvatar'
+import { CountUp, GrowBar, Reveal, stagger } from '../lib/motion'
+import { teamColor } from '../lib/palette'
 import {
   Badge,
   Card,
@@ -22,7 +23,6 @@ import {
   Loading,
   SectionTitle,
   StatTile,
-  TeamDot,
 } from '../components/ui'
 import { FeedbackWidget } from '../components/FeedbackWidget'
 import type { DriverPrediction, RacePrediction, ScenarioResult } from '../lib/types'
@@ -67,6 +67,7 @@ export default function Predictions() {
       </Disclaimer>
 
       <HeaderStats data={data} />
+      <PodiumSpotlight predictions={data.predictions} />
       <FieldList predictions={data.predictions} />
       <ScenarioExplorer raceId={data.race_id} predictions={data.predictions} />
 
@@ -125,7 +126,7 @@ function FieldList({ predictions }: { predictions: DriverPrediction[] }) {
         subtitle="Ranked by podium probability. Select a driver to see what drives the estimate."
       />
       <ul className="divide-y divide-line">
-        {predictions.map((entry) => {
+        {predictions.map((entry, index) => {
           const open = expanded === entry.driver_id
           return (
             <li key={entry.driver_id}>
@@ -133,25 +134,35 @@ function FieldList({ predictions }: { predictions: DriverPrediction[] }) {
                 type="button"
                 onClick={() => setExpanded(open ? null : entry.driver_id)}
                 aria-expanded={open}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-surface-2 sm:px-5"
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-2 sm:px-5"
               >
                 <span className="tabular w-8 shrink-0 text-xs text-ink-muted">
                   P{entry.grid ?? '—'}
                 </span>
+                <DriverAvatar driver={entry} size="sm" />
                 <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2 text-sm font-medium text-ink-primary">
-                    <TeamDot color={teamColor(entry.color)} label={entry.driver} />
+                  <span className="block truncate text-sm font-medium text-ink-primary">
+                    {entry.driver}
                   </span>
-                  <span className="text-xs text-ink-muted">{entry.constructor}</span>
+                  <span
+                    className="block truncate text-xs"
+                    style={{ color: teamColor(entry.color) }}
+                  >
+                    {entry.constructor}
+                  </span>
                 </span>
-                <span className="hidden w-40 shrink-0 sm:block">
-                  <ProbabilityMeter
+                <span className="hidden w-40 shrink-0 items-center gap-3 sm:flex">
+                  <GrowBar
                     value={entry.podium_probability}
-                    color={SERIES[0]}
-                    valueLabel={pct(entry.podium_probability)}
+                    color={teamColor(entry.color)}
+                    className="h-2 flex-1"
+                    delay={stagger(index, 40, 300)}
                   />
+                  <span className="tabular w-10 text-right text-xs font-semibold">
+                    {pct(entry.podium_probability)}
+                  </span>
                 </span>
-                <span className="tabular w-16 shrink-0 text-right text-sm font-medium sm:hidden">
+                <span className="tabular w-14 shrink-0 text-right text-sm font-semibold sm:hidden">
                   {pct(entry.podium_probability)}
                 </span>
                 <span
@@ -377,5 +388,86 @@ function DeltaCard({
         {signed(delta * 100, 1)} pts
       </div>
     </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+/**
+ * The three most likely podium finishers, given the room they deserve.
+ *
+ * Ordered visually as a podium (2nd, 1st, 3rd) with the favourite raised, so
+ * the ranking reads before any number does.
+ */
+function PodiumSpotlight({ predictions }: { predictions: DriverPrediction[] }) {
+  const top = predictions.slice(0, 3)
+  if (top.length < 3) return null
+
+  // Visual podium order: silver, gold, bronze.
+  const arranged = [
+    { entry: top[1], place: 2, lift: 'sm:mt-8' },
+    { entry: top[0], place: 1, lift: '' },
+    { entry: top[2], place: 3, lift: 'sm:mt-12' },
+  ]
+
+  return (
+    <section>
+      <div className="mb-3 flex items-baseline justify-between">
+        <h2 className="text-sm font-semibold text-ink-primary">Most likely podium</h2>
+        <span className="text-xs text-ink-muted">Model estimate, not a forecast</span>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-start">
+        {arranged.map(({ entry, place, lift }, index) => {
+          const accent = teamColor(entry.color)
+          return (
+            <Reveal key={entry.driver_id} delay={stagger(index, 90)} className={lift}>
+              <article
+                className="card-interactive group relative overflow-hidden p-5 text-center"
+                style={{
+                  boxShadow: place === 1 ? `0 20px 50px -28px ${accent}` : undefined,
+                }}
+              >
+                <div
+                  aria-hidden="true"
+                  className="absolute inset-x-0 top-0 h-[3px]"
+                  style={{ background: accent }}
+                />
+                {place === 1 ? (
+                  <div
+                    aria-hidden="true"
+                    className="checkers absolute -right-5 -top-5 h-20 w-20 rotate-12 opacity-25"
+                  />
+                ) : null}
+
+                <p className="label-muted">
+                  {place === 1 ? 'Favourite' : `${place}${place === 2 ? 'nd' : 'rd'} most likely`}
+                </p>
+
+                <DriverAvatar
+                  driver={entry}
+                  size={place === 1 ? 'xl' : 'lg'}
+                  className="mx-auto mt-3"
+                />
+
+                <p className="mt-3 truncate font-display text-base font-bold">
+                  {entry.driver}
+                </p>
+                <p className="truncate text-xs" style={{ color: accent }}>
+                  {entry.constructor}
+                </p>
+
+                <p className="mt-3 font-display text-3xl font-extrabold">
+                  <CountUp to={entry.podium_probability * 100} decimals={1} suffix="%" />
+                </p>
+                <p className="text-[11px] text-ink-muted">podium probability</p>
+
+                <p className="mt-3 text-xs text-ink-secondary">
+                  Starts P{entry.grid ?? '—'}
+                </p>
+              </article>
+            </Reveal>
+          )
+        })}
+      </div>
+    </section>
   )
 }

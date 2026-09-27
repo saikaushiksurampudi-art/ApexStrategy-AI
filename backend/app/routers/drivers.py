@@ -39,6 +39,7 @@ def list_drivers(
             "code": driver.code,
             "number": driver.permanent_number,
             "nationality": driver.nationality,
+            **analytics.driver_portrait(driver),
         }
         for driver in drivers
     ]

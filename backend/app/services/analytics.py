@@ -48,6 +48,16 @@ def driver_label(driver: Driver) -> str:
     return f"{driver.given_name} {driver.family_name}"
 
 
+def driver_portrait(driver: Driver) -> Dict[str, Any]:
+    """Portrait URL plus the attribution its licence requires."""
+    return {
+        "image_url": driver.image_url,
+        "image_author": driver.image_author,
+        "image_license": driver.image_license,
+        "image_license_url": driver.image_license_url,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Lookups
 # ---------------------------------------------------------------------------
@@ -154,6 +164,10 @@ class DriverSummary:
     points_rate: float
     dnf_rate: float
     avg_positions_gained: Optional[float]
+    image_url: Optional[str] = None
+    image_author: Optional[str] = None
+    image_license: Optional[str] = None
+    image_license_url: Optional[str] = None
     seasons: List[int] = field(default_factory=list)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -216,6 +230,7 @@ def driver_summary(
         dnf_rate=_rate(sum(1 for r in results if not r.finished), total),
         avg_positions_gained=round(sum(gained) / len(gained), 2) if gained else None,
         seasons=sorted({race.season for race in races}),
+        **driver_portrait(driver),
     )
 
 
@@ -559,6 +574,7 @@ def circuit_history(
                 "points": 0.0,
                 "positions": [],
                 "grids": [],
+                **driver_portrait(driver),
             },
         )
         entry["starts"] += 1
@@ -769,6 +785,7 @@ def season_standings(db: Session, season: int) -> Dict[str, Any]:
                 "color": constructor.color if constructor else None,
                 "points": standing.points,
                 "wins": standing.wins,
+                **driver_portrait(driver),
             }
             for standing, driver, constructor in driver_rows
         ]
@@ -869,6 +886,7 @@ def race_detail(db: Session, race: Race) -> Dict[str, Any]:
                 "finished": result.finished,
                 "fastest_lap": _ms_to_lap_string(result.fastest_lap_ms),
                 "fastest_lap_rank": result.fastest_lap_rank,
+                **driver_portrait(driver),
             }
             for result, driver, constructor in results
         ],

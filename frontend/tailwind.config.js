@@ -39,9 +39,34 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+        display: ['Archivo', 'Inter', 'system-ui', 'sans-serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
-      borderRadius: { xl: '0.875rem' },
+      borderRadius: { xl: '0.875rem', '2xl': '1.25rem' },
+      keyframes: {
+        'fade-up': {
+          '0%': { opacity: '0', transform: 'translateY(14px)' },
+          '100%': { opacity: '1', transform: 'none' },
+        },
+        'speed-sweep': {
+          '0%': { transform: 'translateX(-120%)' },
+          '100%': { transform: 'translateX(320%)' },
+        },
+        'slow-drift': {
+          '0%, 100%': { transform: 'translate3d(0,0,0) scale(1)' },
+          '50%': { transform: 'translate3d(2%, -3%, 0) scale(1.06)' },
+        },
+        'pulse-ring': {
+          '0%': { opacity: '0.55', transform: 'scale(0.9)' },
+          '70%, 100%': { opacity: '0', transform: 'scale(1.7)' },
+        },
+      },
+      animation: {
+        'fade-up': 'fade-up 620ms cubic-bezier(.22,.61,.36,1) both',
+        'speed-sweep': 'speed-sweep 3.6s ease-in-out infinite',
+        'slow-drift': 'slow-drift 18s ease-in-out infinite',
+        'pulse-ring': 'pulse-ring 2.4s ease-out infinite',
+      },
     },
   },
   plugins: [],

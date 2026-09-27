@@ -4,7 +4,7 @@ SHELL := /bin/bash
 PY := backend/.venv/bin/python
 PIP := backend/.venv/bin/pip
 
-.PHONY: help setup install-backend install-frontend ingest train test test-cov \
+.PHONY: help setup install-backend install-frontend ingest portraits train test test-cov \
         test-frontend test-all lint dev-backend dev-frontend build docker-build \
         docker-up docker-down migrate clean bootstrap
 
@@ -22,11 +22,14 @@ install-backend: ## Create the venv and install Python dependencies
 install-frontend: ## Install Node dependencies
 	cd frontend && npm install
 
-bootstrap: ingest train ## Load historical data, then train the model
+bootstrap: ingest portraits train ## Load data, fetch portraits, train the model
 	@echo "Bootstrap complete. Start the API with 'make dev-backend'."
 
 ingest: ## Download historical F1 data (2021-2025) into the database
 	cd backend && .venv/bin/python -m scripts.ingest
+
+portraits: ## Fetch driver portraits from Wikimedia Commons
+	cd backend && .venv/bin/python -m scripts.fetch_portraits
 
 train: ## Train the podium model and print its evaluation
 	cd backend && .venv/bin/python -m scripts.train_model

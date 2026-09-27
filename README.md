@@ -55,7 +55,8 @@ backend, so both run on the same origin and no CORS setup is needed.
 
 `make bootstrap` takes a few minutes: it pulls roughly 2,300 race results,
 2,300 qualifying results and 4,000 pit stops from the Ergast/Jolpica F1 API,
-then trains and evaluates the model. Responses are cached on disk, so re-runs
+fetches CC-licensed driver portraits from Wikimedia Commons, then trains and
+evaluates the model. Responses are cached on disk, so re-runs
 are fast and offline.
 
 ### Single-service mode
@@ -247,7 +248,13 @@ RDS, Secrets Manager, the IAM roles and the CI/CD workflows.
 ## Data source & attribution
 
 Historical data comes from the [Jolpica F1 API](https://github.com/jolpica/jolpica-f1),
-the community successor to the Ergast Developer API. Track-character metadata
+the community successor to the Ergast Developer API.
+
+Driver portraits come from **Wikimedia Commons** and are all freely licensed
+(CC BY, CC BY-SA or CC0). The author and licence of each image are stored
+alongside it and rendered next to the photo, because almost all of these
+licences require attribution. Drivers without a Commons portrait fall back to a
+generated monogram. Track-character metadata
 (tyre degradation, overtaking difficulty, pit-lane loss) is hand-maintained
 editorial judgement and is labelled as such in the UI.
 
