@@ -216,7 +216,7 @@ function AssistantBubble({ turn }: { turn: Turn }) {
           {response.citations.length > 0 ? (
             <button
               type="button"
-              className="text-xs text-series-1 underline-offset-2 hover:underline"
+              className="link text-xs"
               onClick={() => setShowSources((value) => !value)}
               aria-expanded={showSources}
             >

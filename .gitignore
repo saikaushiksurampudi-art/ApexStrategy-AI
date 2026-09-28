@@ -1,8 +1,10 @@
 # Python
 __pycache__/
 *.py[cod]
-.venv/
-venv/
+# Match any venv variant, not just ".venv/" — a renamed backup once slipped
+# past a bare ".venv/" rule and staged ~11,000 files.
+.venv*
+venv*/
 .pytest_cache/
 .coverage
 htmlcov/

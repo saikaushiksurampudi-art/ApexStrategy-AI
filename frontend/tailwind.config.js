@@ -14,15 +14,21 @@ export default {
           3: '#252833',
         },
         ink: {
-          primary: '#f4f5f7',
-          secondary: '#a8adba',
-          muted: '#6f7686',
+          primary: '#f4f5f7',   // 13.5:1 on the lightest surface
+          secondary: '#a8adba', //  6.5:1
+          // Was #6f7686, which measured 3.22:1 on surface-3 and failed WCAG AA
+          // for normal text. Lifted to clear 4.5:1 on every surface.
+          muted: '#949bac',     //  5.3:1
         },
         line: {
           DEFAULT: '#2a2e3a',
           strong: '#3a3f4f',
         },
         // Validated categorical slots (dark steps) for non-team series.
+        // Button fills need 4.5:1 against white label text, which the chart
+        // blue (#3987e5, 3.64:1) does not meet. Charts keep the validated
+        // series colour; solid buttons use this darker step.
+        action: '#2f72c4',
         series: {
           1: '#3987e5',
           2: '#d95926',

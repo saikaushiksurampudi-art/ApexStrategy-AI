@@ -28,7 +28,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -230,8 +230,8 @@ def train_model(
         )
 
     bundle = ModelBundle(
-        version=version or datetime.now(timezone.utc).strftime("v%Y%m%d-%H%M%S"),
-        trained_at=datetime.now(timezone.utc).isoformat(),
+        version=version or datetime.now(UTC).strftime("v%Y%m%d-%H%M%S"),
+        trained_at=datetime.now(UTC).isoformat(),
         feature_columns=list(FEATURE_COLUMNS),
         estimators=estimators,
         grid_rates=grid_rates,
@@ -350,7 +350,9 @@ def explain_prediction(
     occluded_probs = score_frame(bundle, stacked, target)
 
     contributions = []
-    for name, occluded_prob in zip(names, occluded_probs):
+    # strict=True: the two lists are built in lockstep, so a length mismatch
+    # would mean a feature was silently dropped from the explanation.
+    for name, occluded_prob in zip(names, occluded_probs, strict=True):
         delta = actual - float(occluded_prob)
         if abs(delta) < 0.005:  # ignore noise-level effects
             continue

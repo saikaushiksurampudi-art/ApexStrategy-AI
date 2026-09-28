@@ -690,7 +690,12 @@ function StandingsTable({ standings }: { standings: Standings }) {
           </div>
         }
       />
-      <div className="max-h-[430px] overflow-auto">
+      <div
+        className="max-h-[430px] overflow-auto"
+        tabIndex={0}
+        role="region"
+        aria-label="Championship standings table"
+      >
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-surface-1 text-xs text-ink-muted">
             <tr className="border-b border-line">

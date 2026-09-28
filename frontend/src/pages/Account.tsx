@@ -199,7 +199,7 @@ function AuthForm() {
 
       <p className="mt-4 text-center text-xs text-ink-muted">
         Dashboards, comparisons, predictions and the AI analyst all work without an
-        account. <Link to="/" className="text-series-1 hover:underline">Back to the dashboard</Link>.
+        account. <Link to="/" className="link">Back to the dashboard</Link>.
       </p>
     </div>
   )

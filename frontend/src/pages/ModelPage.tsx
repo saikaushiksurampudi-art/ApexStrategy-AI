@@ -173,7 +173,7 @@ function EvaluationCard({
           </Badge>
         }
       />
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Data table">
         <table className="w-full min-w-[560px] text-sm">
           <thead className="text-xs text-ink-muted">
             <tr className="border-b border-line">

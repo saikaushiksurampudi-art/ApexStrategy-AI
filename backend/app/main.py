@@ -20,6 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from app import __version__
 from app.config import settings
 from app.database import init_db
+from app.middleware import RateLimitMiddleware, SecurityHeadersMiddleware
 from app.routers import (
     auth,
     chat,
@@ -48,6 +49,8 @@ FRONTEND_DIR = Path(
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting %s v%s (%s)", settings.app_name, __version__, settings.environment)
+    # Refuses to boot on an insecure production configuration.
+    settings.validate_runtime_security()
     init_db()
 
     # Warm the model cache so the first prediction request is not the one that
@@ -75,13 +78,22 @@ app = FastAPI(
     openapi_url="/api/openapi.json",
 )
 
+# Order matters: middleware added last runs first, so rate limiting rejects a
+# flood before any of the heavier work happens.
+app.add_middleware(SecurityHeadersMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # Explicit rather than "*": with credentials allowed, a permissive policy
+    # lets any origin make authenticated requests on a signed-in user's behalf.
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
+    max_age=600,
 )
+
+app.add_middleware(RateLimitMiddleware)
 
 
 @app.exception_handler(Exception)

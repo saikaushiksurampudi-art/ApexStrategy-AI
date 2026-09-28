@@ -21,6 +21,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("ENABLE_BEDROCK", "false")
+# Rate limiting is exercised by a dedicated test that switches it on. Leaving
+# it enabled globally would make unrelated tests fail depending on how many
+# auth calls ran before them.
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 from app.database import Base, get_db  # noqa: E402
 from app.models import (  # noqa: E402
@@ -222,7 +226,7 @@ def _seed(db) -> None:
                 )
 
     # Final standings for the last season.
-    totals = {ref: 0.0 for ref in drivers}
+    totals = dict.fromkeys(drivers, 0.0)
     for season, _, _, entries in RACES:
         if season != 2025:
             continue

@@ -58,7 +58,14 @@ export function ChartFrame({
 
       <div className="px-2 py-3 sm:px-3">
         {showTable && table ? (
-          <div className="max-h-[420px] overflow-auto px-2">{table}</div>
+          <div
+            className="max-h-[420px] overflow-auto px-2"
+            tabIndex={0}
+            role="region"
+            aria-label="Chart data as a table"
+          >
+            {table}
+          </div>
         ) : (
           <div style={{ height }}>{children}</div>
         )}

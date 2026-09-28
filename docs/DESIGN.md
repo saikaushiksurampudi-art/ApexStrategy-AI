@@ -186,7 +186,10 @@ driver row already links to. 34 of 35 drivers have one.
 
 ## Accessibility
 
-- All body text meets WCAG AA against its surface.
+- All body text meets WCAG AA against its surface. This was **measured, not
+  assumed** — an axe-core audit initially found 173 failing nodes, mostly the
+  muted ink colour at 3.22:1. The tokens were recomputed until every page
+  passed; see the Testing & Security Report for the before/after numbers.
 - Colour is never the sole carrier of meaning — see the two-palette rule above.
 - Every chart has a table equivalent.
 - Interactive controls use real `<button>` and `<select>` elements with

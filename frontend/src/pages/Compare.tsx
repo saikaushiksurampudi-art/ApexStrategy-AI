@@ -167,6 +167,12 @@ export default function Compare() {
         ) : null}
       </Card>
 
+      {drivers.error ? (
+        <ErrorState
+          message={`Could not load the driver list. ${drivers.error}`}
+          onRetry={drivers.reload}
+        />
+      ) : null}
       {drivers.loading || comparison.loading ? <Loading label="Comparing…" /> : null}
       {comparison.error ? (
         <ErrorState message={comparison.error} onRetry={comparison.reload} />
@@ -521,7 +527,7 @@ function SaveComparison({
   if (!user) {
     return (
       <p className="text-xs text-ink-muted">
-        <Link to="/account" className="text-series-1 hover:underline">
+        <Link to="/account" className="link">
           Sign in
         </Link>{' '}
         to save this comparison and revisit it later.
@@ -550,7 +556,7 @@ function SaveComparison({
     return (
       <p className="text-xs text-status-good">
         Saved.{' '}
-        <Link to="/account" className="text-series-1 hover:underline">
+        <Link to="/account" className="link">
           View your saved comparisons
         </Link>
         .

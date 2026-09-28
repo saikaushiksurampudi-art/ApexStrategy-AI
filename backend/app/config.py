@@ -18,6 +18,10 @@ from typing_extensions import Annotated
 
 logger = logging.getLogger(__name__)
 
+# Sentinel default. Booting production with this value would let anyone forge a
+# token, so `validate_runtime_security` refuses to start when it is still set.
+DEV_JWT_SECRET = "dev-only-insecure-secret-change-me"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -27,7 +31,9 @@ class Settings(BaseSettings):
     # --- General ---------------------------------------------------------
     app_name: str = "ApexStrategy AI"
     environment: str = Field(default="development")
-    debug: bool = Field(default=True)
+    # Defaults to False: an unset DEBUG must never be the reason a production
+    # deployment leaks exception text to clients.
+    debug: bool = Field(default=False)
     api_prefix: str = "/api"
 
     # --- Database --------------------------------------------------------
@@ -39,7 +45,7 @@ class Settings(BaseSettings):
     db_secret_arn: Optional[str] = Field(default=None)
 
     # --- Auth ------------------------------------------------------------
-    jwt_secret: str = Field(default="dev-only-insecure-secret-change-me")
+    jwt_secret: str = Field(default=DEV_JWT_SECRET)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24 * 7
 
@@ -70,6 +76,13 @@ class Settings(BaseSettings):
         default_factory=lambda: [2021, 2022, 2023, 2024, 2025]
     )
 
+    # --- Rate limiting ----------------------------------------------------
+    # In-process, per-instance limits. Distributed limiting belongs at the edge
+    # (AWS WAF); this is the last line of defence on a single container.
+    rate_limit_enabled: bool = Field(default=True)
+    rate_limit_per_minute: int = Field(default=240)
+    rate_limit_auth_per_minute: int = Field(default=10)
+
     # --- CORS ------------------------------------------------------------
     cors_origins: Annotated[List[str], NoDecode] = Field(
         default_factory=lambda: [
@@ -95,6 +108,51 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.environment.lower() in {"prod", "production"}
+
+    def validate_runtime_security(self) -> None:
+        """Fail fast on configuration that is unsafe to run in production.
+
+        These are refusals rather than warnings on purpose: a service that
+        silently boots with a publicly-known signing key is worse than one that
+        does not boot at all, because nothing surfaces the problem until it is
+        exploited.
+        """
+        if not self.is_production:
+            # Still worth flagging in development, just not fatal.
+            if self.jwt_secret == DEV_JWT_SECRET:
+                logger.warning(
+                    "Using the default development JWT secret. Set JWT_SECRET "
+                    "before deploying."
+                )
+            return
+
+        problems = []
+        if self.jwt_secret == DEV_JWT_SECRET:
+            problems.append(
+                "JWT_SECRET is still the public development default. Generate one "
+                "with: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+            )
+        if len(self.jwt_secret) < 32:
+            problems.append("JWT_SECRET must be at least 32 characters in production.")
+        if self.debug:
+            problems.append(
+                "DEBUG must be false in production; it returns exception text to clients."
+            )
+        if "*" in self.cors_origins:
+            problems.append(
+                "CORS_ORIGINS cannot be '*' while credentials are allowed -- any "
+                "site could then make authenticated requests on a user's behalf."
+            )
+        if self.database_url.startswith("sqlite"):
+            logger.warning(
+                "Running production on SQLite. Use PostgreSQL (RDS) for a real deployment."
+            )
+
+        if problems:
+            raise RuntimeError(
+                "Refusing to start with an insecure configuration:\n  - "
+                + "\n  - ".join(problems)
+            )
 
     @property
     def model_path(self) -> str:

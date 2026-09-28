@@ -340,7 +340,7 @@ function TopDriversTable({ data }: { data: CircuitHistory }) {
         title="Strongest records at this circuit"
         subtitle={`Ranked by podiums, then points · ${seasonRange(data.seasons_covered)}`}
       />
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Data table">
         <table className="w-full min-w-[640px] text-sm">
           <thead className="text-xs text-ink-muted">
             <tr className="border-b border-line">

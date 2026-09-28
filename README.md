@@ -28,7 +28,11 @@ source for, and it never presents a probability as a prediction.**
 
 ## Quick start
 
-Requires Python 3.9+ and Node 20+. No AWS account is needed — the AI layer falls
+Requires **Python 3.11+** and Node 20+. (Python 3.9 reached end-of-life in
+October 2025, and the patched releases of several dependencies — PyJWT,
+Starlette, pydantic-settings — require 3.10 or newer. See the
+[Testing & Security Report](docs/TESTING-AND-SECURITY.md) for the audit that
+found this.) No AWS account is needed — the AI layer falls
 back to a built-in writer that produces the same grounded answers, just less
 fluently.
 
@@ -222,13 +226,19 @@ This is built into the product, not bolted on:
 ## Development
 
 ```bash
-make test-all      # 103 backend tests + 27 frontend tests
+make test-all      # 109 backend + 40 frontend tests
 make test          # backend only
 make test-cov      # backend with coverage
 make test-frontend # TypeScript type check + vitest
+make test-e2e      # 54 browser tests (both dev servers must be running)
+make audit         # dependency vulnerability scan
 make lint          # ruff
 make migrate       # alembic upgrade head
 ```
+
+**203 automated tests** in total. Testing methodology, the bugs found, the
+security audit and the accessibility results are documented in
+[`docs/TESTING-AND-SECURITY.md`](docs/TESTING-AND-SECURITY.md).
 
 Interactive API docs: <http://localhost:8000/api/docs>
 
@@ -242,6 +252,11 @@ image, one service and one URL.
 
 See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the ECR + App Runner setup,
 RDS, Secrets Manager, the IAM roles and the CI/CD workflows.
+
+The application **refuses to start in production** with an insecure
+configuration — a default JWT secret, `DEBUG` left on, or a wildcard CORS
+origin. A service that silently boots with a publicly-known signing key is
+worse than one that does not boot at all.
 
 ---
 

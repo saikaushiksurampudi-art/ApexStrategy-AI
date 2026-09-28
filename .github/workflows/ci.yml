@@ -34,6 +34,13 @@ jobs:
         # Tests use an in-memory SQLite database and never touch the network.
         run: pytest --cov=app --cov-report=term-missing
 
+      - name: Audit Python dependencies
+        working-directory: backend
+        run: |
+          pip install pip-audit
+          pip-audit --requirement requirements.txt --strict || \
+            echo "::warning::pip-audit reported findings - review before release"
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest
@@ -57,6 +64,10 @@ jobs:
       - name: Unit tests
         working-directory: frontend
         run: npm test
+
+      - name: Audit npm dependencies
+        working-directory: frontend
+        run: npm audit --audit-level=high || echo "::warning::npm audit reported findings"
 
       - name: Build
         working-directory: frontend
@@ -95,3 +106,53 @@ jobs:
           echo "Container failed to become healthy"
           docker logs apex
           exit 1
+
+  e2e:
+    name: End-to-end browser tests
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements-dev.txt playwright pytest-playwright
+          python -m playwright install --with-deps chromium
+          cd frontend && npm ci --no-audit --no-fund
+
+      - name: Seed a minimal dataset
+        working-directory: backend
+        # One season keeps CI fast; the suite exercises the UI, not the volume.
+        run: |
+          python -m scripts.ingest --seasons 2024 --no-pitstops
+          python -m scripts.train_model --train-seasons 2024 --test-seasons 2024 || true
+
+      - name: Start the servers
+        run: |
+          cd backend && python -m uvicorn app.main:app --port 8000 &
+          cd frontend && npm run dev &
+          npx wait-on http://127.0.0.1:8000/api/health http://127.0.0.1:5173 -t 90000
+
+      - name: Run end-to-end tests
+        run: python -m pytest tests/e2e -q
+
+      - name: Upload failure screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-failures
+          path: test-results/
+          if-no-files-found: ignore

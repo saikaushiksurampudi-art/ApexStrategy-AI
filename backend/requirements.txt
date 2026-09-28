@@ -1,33 +1,43 @@
 # --- Web framework -------------------------------------------------------
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-pydantic==2.10.4
-email-validator==2.2.0
-pydantic-settings==2.7.0
-python-multipart==0.0.20
+fastapi==0.141.1
+uvicorn[standard]==0.39.0
+pydantic==2.13.5
+email-validator==2.3.0
+pydantic-settings==2.11.0
+python-multipart==0.0.31
 
 # --- Database ------------------------------------------------------------
-SQLAlchemy==2.0.36
-alembic==1.14.0
+SQLAlchemy==2.0.44
+alembic==1.17.1
 # The PostgreSQL driver lives in requirements-postgres.txt: local development
 # runs on SQLite, and psycopg2 needs libpq headers to build on some machines.
 
 # --- Auth ----------------------------------------------------------------
 passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
-PyJWT==2.10.1
+PyJWT==2.15.0
 
 # --- Data / ML -----------------------------------------------------------
-pandas==2.2.3
-numpy==1.26.4
-scikit-learn==1.5.2
-joblib==1.4.2
+pandas==2.3.3
+numpy==2.2.6
+scikit-learn==1.7.2
+joblib==1.5.2
 
 # --- AWS -----------------------------------------------------------------
-boto3==1.35.90
+boto3==1.41.5
 
 # --- HTTP client (data ingestion) ---------------------------------------
 httpx==0.28.1
 
 # --- Testing -------------------------------------------------------------
-pytest==8.3.4
+pytest==9.0.3
+
+starlette>=1.3.1
+
+# --- Transitive security pins --------------------------------------------
+# Pulled in by boto3/httpx/starlette; pinned forward to close advisories that
+# the versions those packages would otherwise resolve to still carry.
+urllib3>=2.7.0
+anyio>=4.14.2
+click>=8.3.3
+python-dotenv>=1.2.2

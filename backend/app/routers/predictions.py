@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Race
+from app.deps import get_current_user
+from app.models import Race, User
 from app.schemas import ScenarioRequest
 from app.services import analytics
 from app.services.prediction import model_status, predict_race, scenario
@@ -27,26 +28,56 @@ def model_info() -> Dict[str, Any]:
 
 
 @router.get("/next")
-def next_race_predictions(
-    persist: bool = Query(default=False),
-    db: Session = Depends(get_db),
-) -> Dict[str, Any]:
+def next_race_predictions(db: Session = Depends(get_db)) -> Dict[str, Any]:
+    """Score the next race.
+
+    Read-only. Persisting predictions is a write, so it lives behind an
+    authenticated POST rather than a query parameter on a GET -- a GET must be
+    safe to retry, prefetch or cache.
+    """
     race = analytics.next_race(db)
     if race is None:
         raise HTTPException(status_code=404, detail="No races in the database")
-    return predict_race(db, race, persist=persist)
+    return predict_race(db, race)
 
 
 @router.get("/race/{race_id}")
-def race_predictions(
-    race_id: int,
-    persist: bool = Query(default=False),
-    db: Session = Depends(get_db),
-) -> Dict[str, Any]:
+def race_predictions(race_id: int, db: Session = Depends(get_db)) -> Dict[str, Any]:
     race = db.get(Race, race_id)
     if race is None:
         raise HTTPException(status_code=404, detail="Race not found")
-    return predict_race(db, race, persist=persist)
+    return predict_race(db, race)
+
+
+@router.post("/race/{race_id}/snapshot", status_code=status.HTTP_201_CREATED)
+def snapshot_predictions(
+    race_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Store the current model output for a race, for later comparison.
+
+    Requires an account: this is the only endpoint in the prediction router
+    that writes, and leaving it open let any anonymous caller insert rows by
+    issuing a GET.
+    """
+    race = db.get(Race, race_id)
+    if race is None:
+        raise HTTPException(status_code=404, detail="Race not found")
+
+    outcome = predict_race(db, race, persist=True)
+    if not outcome.get("available"):
+        raise HTTPException(
+            status_code=503,
+            detail=outcome.get("message", "No model is available to snapshot"),
+        )
+    return {
+        "race_id": race.id,
+        "race": outcome["race"],
+        "model_version": outcome["model_version"],
+        "stored": len(outcome["predictions"]),
+        "saved_by": user.email,
+    }
 
 
 @router.post("/scenario")

@@ -10,7 +10,13 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models import User
 from app.schemas import TokenOut, UserCreate, UserLogin, UserOut
-from app.security import create_access_token, hash_password, verify_password
+from app.security import (
+    create_access_token,
+    hash_password,
+    needs_rehash,
+    verify_password,
+    verify_password_dummy,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -42,12 +48,27 @@ def register(payload: UserCreate, db: Session = Depends(get_db)) -> TokenOut:
 @router.post("/login", response_model=TokenOut)
 def login(payload: UserLogin, db: Session = Depends(get_db)) -> TokenOut:
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
-    # Same message either way, so the endpoint does not reveal which emails exist.
-    if user is None or not verify_password(payload.password, user.hashed_password):
+
+    if user is None:
+        # Hash anyway. Skipping this made a missing account reject ~160x faster
+        # than a wrong password, which enumerates registered emails.
+        verify_password_dummy(payload.password)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
         )
+
+    if not verify_password(payload.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+        )
+
+    # Opportunistically upgrade hashes created under an older scheme.
+    if needs_rehash(user.hashed_password):
+        user.hashed_password = hash_password(payload.password)
+        db.commit()
+
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Account is disabled"

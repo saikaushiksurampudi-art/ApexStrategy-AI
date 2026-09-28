@@ -4,9 +4,9 @@ SHELL := /bin/bash
 PY := backend/.venv/bin/python
 PIP := backend/.venv/bin/pip
 
-.PHONY: help setup install-backend install-frontend ingest portraits train test test-cov \
-        test-frontend test-all lint dev-backend dev-frontend build docker-build \
-        docker-up docker-down migrate clean bootstrap
+.PHONY: help setup install-backend install-frontend ingest portraits train test \
+        test-cov test-frontend test-e2e test-all audit lint dev-backend \
+        dev-frontend build docker-build docker-up docker-down migrate clean bootstrap
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -15,7 +15,11 @@ help: ## Show this help
 setup: install-backend install-frontend ## Install all dependencies
 
 install-backend: ## Create the venv and install Python dependencies
-	python3 -m venv backend/.venv
+	# Python 3.11+ is required: patched releases of PyJWT, Starlette and
+	# pydantic-settings all dropped 3.9, which is itself end-of-life.
+	python3.11 -m venv backend/.venv 2>/dev/null || python3 -m venv backend/.venv
+	backend/.venv/bin/python -c "import sys; assert sys.version_info >= (3, 11), \
+		f'Python 3.11+ required, found {sys.version.split()[0]}'"
 	$(PIP) install --upgrade pip
 	$(PIP) install -r backend/requirements-dev.txt
 
@@ -43,7 +47,15 @@ test-cov: ## Run the backend tests with a coverage report
 test-frontend: ## Type-check and unit-test the frontend
 	cd frontend && npm run lint && npm test
 
-test-all: test test-frontend ## Run every test suite
+test-e2e: ## Run the browser end-to-end suite (both dev servers must be up)
+	backend/.venv/bin/python -m pytest tests/e2e -q
+
+audit: ## Check dependencies for known vulnerabilities
+	cd backend && .venv/bin/pip install -q pip-audit && \
+		.venv/bin/pip-audit --requirement requirements.txt || true
+	cd frontend && npm audit --audit-level=high || true
+
+test-all: test test-frontend ## Run every unit and integration suite
 
 lint: ## Lint the backend
 	cd backend && .venv/bin/ruff check app scripts tests

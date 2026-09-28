@@ -89,8 +89,8 @@
   }
 
   .btn-primary {
-    @apply btn bg-series-1 text-white shadow-lg shadow-series-1/20
-           transition-all hover:bg-[#2f72c4] hover:shadow-series-1/30
+    @apply btn bg-action text-white shadow-lg shadow-action/20
+           transition-all hover:bg-[#2a6bb8] hover:shadow-action/30
            active:scale-[0.98];
   }
 
@@ -114,6 +114,13 @@
   .chip {
     @apply inline-flex items-center gap-1.5 rounded-full bg-surface-2 border
            border-line px-2.5 py-1 text-xs text-ink-secondary;
+  }
+
+  /* Inline links inside prose must be distinguishable without colour, so they
+     are underlined rather than relying on the blue alone. */
+  .link {
+    @apply text-series-1 underline decoration-series-1/40 underline-offset-2
+           transition-colors hover:decoration-series-1;
   }
 }
 

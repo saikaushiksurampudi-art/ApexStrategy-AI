@@ -1,4 +1,5 @@
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { AuthProvider, useAuth } from './lib/auth'
 import Account from './pages/Account'
 import Dashboard from './pages/Dashboard'
@@ -45,6 +46,7 @@ function AccountLink() {
 }
 
 function Shell() {
+  const location = useLocation()
   return (
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-20 border-b border-line bg-surface-0/95 backdrop-blur">
@@ -88,17 +90,20 @@ function Shell() {
       </header>
 
       <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 py-5 sm:px-6 sm:py-6">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/compare" element={<Compare />} />
-          <Route path="/circuits" element={<Circuits />} />
-          <Route path="/circuits/:ref" element={<Circuits />} />
-          <Route path="/predictions" element={<Predictions />} />
-          <Route path="/analyst" element={<Analyst />} />
-          <Route path="/model" element={<ModelPage />} />
-          <Route path="/account" element={<Account />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        {/* Keyed on the route so navigating away from a broken page recovers. */}
+        <ErrorBoundary resetKey={location.pathname}>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/compare" element={<Compare />} />
+            <Route path="/circuits" element={<Circuits />} />
+            <Route path="/circuits/:ref" element={<Circuits />} />
+            <Route path="/predictions" element={<Predictions />} />
+            <Route path="/analyst" element={<Analyst />} />
+            <Route path="/model" element={<ModelPage />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </ErrorBoundary>
       </main>
 
       <footer className="border-t border-line px-4 py-4 sm:px-6">

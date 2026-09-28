@@ -10,7 +10,7 @@ Product data    : User, Prediction, Feedback, SavedComparison, ChatMessage
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import List, Optional
 
 from sqlalchemy import (
@@ -32,7 +32,7 @@ from app.database import Base
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 # ---------------------------------------------------------------------------
