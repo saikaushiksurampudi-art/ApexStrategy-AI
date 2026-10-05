@@ -48,4 +48,4 @@ run:
     # Resolved from AWS Secrets Manager at start-up via the instance role.
     # The ARN is not sensitive; the value never leaves Secrets Manager.
     - name: JWT_SECRET
-      value: arn:aws:secretsmanager:us-east-1:053578820492:secret:apexstrategy/jwt-nV2EJH
+      value-from: arn:aws:secretsmanager:us-east-1:053578820492:secret:apexstrategy/jwt-nV2EJH
