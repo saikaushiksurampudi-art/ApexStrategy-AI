@@ -17,12 +17,17 @@ runtime: python311
 build:
   commands:
     pre-build:
-      # The Python image may not ship Node; Vite 5 needs Node 18+.
-      - command -v npm || dnf install -y nodejs npm
-      - (cd frontend && npm ci --no-audit --no-fund && npm run build)
+      # The Python image ships no Node, and installing it through the OS
+      # package manager failed, so use the official tarball, which needs only
+      # curl and tar. Each step runs in its own sh -c so no step depends on
+      # whether the working directory carries over between commands.
+      - cat /etc/os-release
+      - curl -fsSL https://nodejs.org/dist/v22.11.0/node-v22.11.0-linux-x64.tar.gz -o /tmp/node.tgz
+      - sh -c "mkdir -p /tmp/node && tar -xzf /tmp/node.tgz -C /tmp/node --strip-components=1"
+      - sh -c "cd frontend && PATH=/tmp/node/bin:$PATH npm ci --no-audit --no-fund && PATH=/tmp/node/bin:$PATH npm run build"
     build:
       - pip3 install -r backend/requirements.txt
-      - (cd backend && python3 -m scripts.ingest && python3 -m scripts.fetch_portraits && python3 -m scripts.train_model)
+      - sh -c "cd backend && python3 -m scripts.ingest && python3 -m scripts.fetch_portraits && python3 -m scripts.train_model"
 
 run:
   # Packages installed during the build stage do not carry over to the run
