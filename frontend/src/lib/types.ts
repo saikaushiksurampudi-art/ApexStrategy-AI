@@ -330,6 +330,22 @@ export interface ModelInfo {
       baseline_scores: Record<string, number>
       beats_baseline: boolean
       log_loss_improvement: number
+      calibration?: CalibrationTable | null
     }
   >
+}
+
+export interface CalibrationBin {
+  lower: number
+  upper: number
+  n: number
+  mean_predicted: number
+  observed_rate: number
+  observed_low: number
+  observed_high: number
+}
+
+export interface CalibrationTable {
+  bins: CalibrationBin[]
+  expected_calibration_error: number
 }

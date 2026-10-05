@@ -9,7 +9,8 @@ napkin, so every run reports:
 * **class_prior**    -- always predict the overall base rate
 
 Scoring uses log loss and Brier score (probability quality) alongside ROC AUC
-and accuracy (ranking and classification quality).
+and accuracy (ranking and classification quality). A reliability table then
+checks calibration directly: of the drivers given ~30%, did ~30% get there?
 """
 
 from __future__ import annotations
@@ -34,6 +35,9 @@ logger = logging.getLogger(__name__)
 
 TARGET_COLUMNS = {"podium": "podium", "points": "in_points"}
 
+# Finer at the low end, where most podium probabilities sit.
+CALIBRATION_EDGES = [0.0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
 
 def _safe_metric(fn, *args, **kwargs) -> float:
     """Metrics like ROC AUC are undefined on a single-class slice."""
@@ -56,6 +60,51 @@ def score_probabilities(y_true: np.ndarray, probs: np.ndarray) -> Dict[str, floa
         ),
         "recall": _safe_metric(recall_score, y_true, predicted_label, zero_division=0),
     }
+
+
+def _wilson_interval(hits: int, n: int, z: float = 1.96) -> tuple:
+    """95% interval for an observed rate; stays sensible for small bins."""
+    p = hits / n
+    denom = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / denom
+    return max(0.0, centre - half), min(1.0, centre + half)
+
+
+def calibration_table(y_true: np.ndarray, probs: np.ndarray) -> Dict[str, Any]:
+    """Reliability table: mean predicted vs. observed rate per probability bin.
+
+    A well-calibrated model sits on the diagonal. Each bin carries its count
+    and a Wilson interval, because a bin of eight drivers proves very little
+    and the table should say so rather than imply precision it lacks.
+    """
+    edges = np.array(CALIBRATION_EDGES)
+    # right=True puts exactly 0.0 in the first bin; clip keeps 1.0 in the last.
+    idx = np.clip(np.digitize(probs, edges[1:-1], right=True), 0, len(edges) - 2)
+    bins: List[Dict[str, Any]] = []
+    ece = 0.0
+    for i in range(len(edges) - 1):
+        mask = idx == i
+        n = int(mask.sum())
+        if n == 0:
+            continue
+        predicted = float(probs[mask].mean())
+        hits = int(y_true[mask].sum())
+        observed = hits / n
+        low, high = _wilson_interval(hits, n)
+        ece += n / len(probs) * abs(predicted - observed)
+        bins.append(
+            {
+                "lower": float(edges[i]),
+                "upper": float(edges[i + 1]),
+                "n": n,
+                "mean_predicted": round(predicted, 4),
+                "observed_rate": round(observed, 4),
+                "observed_low": round(low, 4),
+                "observed_high": round(high, 4),
+            }
+        )
+    return {"bins": bins, "expected_calibration_error": round(ece, 4)}
 
 
 def grid_rule_baseline(test: pd.DataFrame, target: str) -> np.ndarray:
@@ -133,6 +182,7 @@ def evaluate(
             "best_baseline": best_baseline_name,
             "log_loss_improvement": round(best_baseline_ll - model_ll, 4),
             "beats_baseline": bool(model_ll < best_baseline_ll),
+            "calibration": calibration_table(y_true, np.asarray(model_probs[target])),
         }
 
     return report
@@ -170,5 +220,17 @@ def format_report(report: Dict[str, Any]) -> str:
             f"  -> model {verdict} the best baseline ({block['best_baseline']}) "
             f"by {block['log_loss_improvement']:+.4f} log loss"
         )
+        calibration = block.get("calibration")
+        if calibration:
+            lines.append(
+                f"  calibration (ECE {calibration['expected_calibration_error']:.4f}):"
+                f"  {'bin':<12}{'n':>5}{'predicted':>11}{'observed':>10}"
+            )
+            for b in calibration["bins"]:
+                label = f"{b['lower']:.0%}-{b['upper']:.0%}"
+                lines.append(
+                    f"  {'':<26}{label:<12}{b['n']:>5}"
+                    f"{b['mean_predicted']:>11.1%}{b['observed_rate']:>10.1%}"
+                )
     lines.append("=" * 78)
     return "\n".join(lines)

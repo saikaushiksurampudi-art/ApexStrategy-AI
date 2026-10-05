@@ -11,7 +11,7 @@ import { api } from '../lib/api'
 import { useApi } from '../hooks/useApi'
 import { num, pct } from '../lib/format'
 import { Badge, Card, CardHeader, EmptyState, ErrorState, Loading, SectionTitle, StatTile } from '../components/ui'
-import type { ModelInfo } from '../lib/types'
+import type { CalibrationTable, ModelInfo } from '../lib/types'
 
 const METRIC_HELP: Record<string, string> = {
   log_loss: 'Penalises confident mistakes. Lower is better.',
@@ -219,7 +219,64 @@ function EvaluationCard({
         {BASELINE_HELP[block.best_baseline] ?? 'A simple reference method.'} The model improves on it
         by {num(block.log_loss_improvement, 4)} log loss.
       </p>
+      {block.calibration ? <CalibrationSection table={block.calibration} /> : null}
     </Card>
+  )
+}
+
+// Below this many drivers a bin's observed rate is mostly noise.
+const SMALL_BIN = 20
+
+/**
+ * Reliability table: of the drivers the model gave ~30%, how many made it?
+ * A calibrated model's observed rate tracks its prediction. Each row shows the
+ * 95% range for the observed rate, so small bins read as uncertain, not wrong.
+ */
+function CalibrationSection({ table }: { table: CalibrationTable }) {
+  return (
+    <div className="border-t border-line">
+      <div className="px-4 pt-4 sm:px-5">
+        <h3 className="text-sm font-semibold text-ink-primary">Calibration</h3>
+        <p className="mt-1 text-xs leading-relaxed text-ink-muted">
+          Held-out drivers grouped by the probability the model gave them. If the model is well
+          calibrated, the actual rate matches the prediction in every row. Average gap (expected
+          calibration error): {pct(table.expected_calibration_error, 1)}.
+        </p>
+      </div>
+      <div className="mt-2 overflow-x-auto" tabIndex={0} role="region" aria-label="Calibration table">
+        <table className="w-full min-w-[560px] text-sm">
+          <thead className="text-xs text-ink-muted">
+            <tr className="border-b border-line">
+              <th className="px-4 py-2 text-left font-medium">Model said</th>
+              <th className="px-4 py-2 text-right font-medium">Drivers</th>
+              <th className="px-4 py-2 text-right font-medium">Average predicted</th>
+              <th className="px-4 py-2 text-right font-medium">Actually happened</th>
+              <th className="px-4 py-2 text-left font-medium">95% range</th>
+            </tr>
+          </thead>
+          <tbody>
+            {table.bins.map((bin) => (
+              <tr key={bin.lower} className="border-b border-line/60 last:border-0">
+                <td className="tabular px-4 py-2 text-xs">
+                  {pct(bin.lower)}–{pct(bin.upper)}
+                </td>
+                <td className="tabular px-4 py-2 text-right text-ink-secondary">
+                  {bin.n}
+                  {bin.n < SMALL_BIN ? <span className="ml-1 text-ink-muted">(small)</span> : null}
+                </td>
+                <td className="tabular px-4 py-2 text-right">{pct(bin.mean_predicted, 1)}</td>
+                <td className="tabular px-4 py-2 text-right font-medium text-ink-primary">
+                  {pct(bin.observed_rate, 1)}
+                </td>
+                <td className="tabular px-4 py-2 text-xs text-ink-muted">
+                  {pct(bin.observed_low)}–{pct(bin.observed_high)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   )
 }
 

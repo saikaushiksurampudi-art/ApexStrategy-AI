@@ -86,6 +86,46 @@ A useful sanity check surfaced on the dashboard: **podium probabilities across
 the field sum to ≈3.0** (3.14 on the current model), which is what a calibrated
 set of estimates should do when three drivers reach the podium.
 
+#### Reliability on the held-out season
+
+Summing to 3 is necessary but not sufficient. The direct test is a reliability
+table: group the 479 held-out 2025 entries by the probability the model gave
+them, then compare the average prediction with what actually happened. Each
+observed rate carries a 95% Wilson interval, because a bin of 15 drivers proves
+very little. Training prints this table, and the Model page shows it.
+
+**Podium** (expected calibration error 3.6%)
+
+| Model said | Drivers | Avg predicted | Actual | 95% range |
+|---|---|---|---|---|
+| 0–5% | 301 | 1.6% | 0.7% | 0–2% |
+| 5–10% | 35 | 7.1% | 5.7% | 2–19% |
+| 10–20% | 28 | 14.4% | 7.1% | 2–23% |
+| 20–30% | 26 | 24.9% | 15.4% | 6–34% |
+| 30–40% | 15 | 35.5% | 53.3% | 30–75% |
+| 40–50% | 17 | 45.2% | 41.2% | 22–64% |
+| 50–60% | 5 | 55.9% | 80.0% | 38–96% |
+| 60–70% | 18 | 64.4% | 77.8% | 55–91% |
+| 70–80% | 22 | 75.1% | 86.4% | 67–95% |
+| 80–90% | 12 | 82.1% | 83.3% | 55–95% |
+
+**Points** (expected calibration error 3.2%): every bin is within about 7 points of
+its prediction, and 5 of the 11 are within 3.
+
+What this shows, stated plainly:
+
+- Every podium bin's prediction falls inside the 95% range of its observed
+  rate, so no single bin is demonstrably miscalibrated on one season of data.
+- But the misses lean one way. The model is **too generous to midfield
+  drivers** (it said ~25% for the 20–30% bin; 15% made it) and **too cautious
+  about front-runners** (it said ~75%; 86% made it). That is the signature of a
+  model pulled toward the middle, plausibly by the strong regularisation
+  (C=0.1) and the grid-rate blend.
+- One held-out season is too little to correct this safely. Re-fitting the
+  calibration on 2025 would leak the test set. The plan is to re-check the
+  pattern as the 2026 season comes in. If it holds, calibrate on a validation
+  season the same way the blend weight is chosen.
+
 ---
 
 ## Features

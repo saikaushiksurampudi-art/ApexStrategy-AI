@@ -127,6 +127,8 @@ def model_status() -> Dict[str, Any]:
                 "baseline_scores": block["scores"][block["best_baseline"]],
                 "beats_baseline": block["beats_baseline"],
                 "log_loss_improvement": block["log_loss_improvement"],
+                # Absent on models trained before calibration was reported.
+                "calibration": block.get("calibration"),
             }
             for target, block in metrics.items()
         },

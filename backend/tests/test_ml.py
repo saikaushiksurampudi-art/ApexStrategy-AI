@@ -208,6 +208,31 @@ def test_evaluate_reports_every_baseline(db_session):
         assert set(scores) == {"model", "grid_base_rate", "grid_rule", "class_prior"}
         assert "beats_baseline" in report["targets"][target]
 
+        calibration = report["targets"][target]["calibration"]
+        bins = calibration["bins"]
+        # Every test row lands in exactly one bin.
+        assert sum(b["n"] for b in bins) == report["n_test"]
+        for b in bins:
+            assert b["lower"] <= b["mean_predicted"] <= b["upper"]
+            assert b["observed_low"] <= b["observed_rate"] <= b["observed_high"]
+        assert 0 <= calibration["expected_calibration_error"] <= 1
+
+
+def test_calibration_table_bins_and_error():
+    from app.ml.evaluate import calibration_table
+
+    # Perfectly calibrated toy data: 10% bin hits 1 in 10, 90% bin hits 9 in 10.
+    probs = np.array([0.1] * 10 + [0.9] * 10)
+    y = np.array([1] + [0] * 9 + [1] * 9 + [0])
+    table = calibration_table(y, probs)
+
+    assert [(b["n"], b["observed_rate"]) for b in table["bins"]] == [(10, 0.1), (10, 0.9)]
+    assert table["expected_calibration_error"] == 0.0
+
+    # Edge probabilities stay in range rather than falling off either end.
+    edges = calibration_table(np.array([0, 1]), np.array([0.0, 1.0]))
+    assert sum(b["n"] for b in edges["bins"]) == 2
+
 
 def test_explanation_is_faithful_to_the_model(db_session):
     """Each reported impact must match a real re-scoring of the model."""
