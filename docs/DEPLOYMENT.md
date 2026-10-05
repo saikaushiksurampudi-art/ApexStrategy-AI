@@ -1,5 +1,33 @@
 # Deployment to AWS
 
+There are two deployment paths:
+
+| | Live demo (current) | Production (below) |
+|---|---|---|
+| Source | App Runner builds from GitHub `main` | GitHub Actions → ECR image |
+| Database | SQLite, built during deploy | RDS PostgreSQL |
+| Accounts & feedback | Reset on each deploy | Persistent |
+| AI analyst | Built-in grounded writer | Claude on Bedrock |
+| Extra AWS resources | One secret, one IAM role | RDS, VPC connector, S3, ECR, OIDC role |
+
+## Live demo: source deployment
+
+`apprunner.yaml` drives it. On every push to `main`, App Runner builds the
+frontend, ingests the five seasons from the committed API cache in
+`backend/data/cache`, fetches portraits, trains the model and starts uvicorn.
+The service needs only:
+
+- **Secret** `apexstrategy/jwt` in Secrets Manager (a random 48-byte key).
+- **Instance role** `apexstrategy-apprunner-instance`, trusted by
+  `tasks.apprunner.amazonaws.com`, allowed `secretsmanager:GetSecretValue`
+  on that one secret and nothing else.
+- **Service** `apexstrategy-ai`: 1 vCPU / 2 GB, health check `GET /api/health`,
+  auto-deploy on.
+
+---
+
+## Production: container deployment
+
 The MVP deploys as **one App Runner service**: the React bundle is compiled
 during the Docker build and served by FastAPI, so there is a single image, a
 single service and a single URL. No CloudFront distribution, no separate static

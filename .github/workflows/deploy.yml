@@ -1,8 +1,9 @@
 name: Deploy to AWS App Runner
 
+# Manual only. The live demo deploys from source: App Runner watches main and
+# rebuilds on every push (see apprunner.yaml). This workflow is the container
+# path for the RDS-backed production setup in docs/DEPLOYMENT.md.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Deployment uses an OIDC role rather than long-lived access keys, so no AWS

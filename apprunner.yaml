@@ -1,31 +1,35 @@
-# AWS App Runner service configuration.
+# AWS App Runner service configuration (source-code deployment from GitHub).
 #
-# This file applies to *source-code* deployments. When deploying a container
-# image from ECR instead (the path the GitHub Actions workflow takes), the port,
-# environment and health check are configured on the App Runner service itself
-# rather than here -- see docs/DEPLOYMENT.md.
+# This is the self-contained demo deployment: the build loads five seasons of
+# F1 data into SQLite and trains the model, so the running service needs no
+# database server, no S3 and no first-run step. The data is historical and
+# read-mostly, so SQLite is enough; accounts and feedback live in the same file
+# and reset whenever a new version deploys. For persistent accounts, switch to
+# RDS as described in docs/DEPLOYMENT.md.
+#
+# Ingestion reads backend/data/cache (committed API responses), so the build
+# does not depend on the Jolpica API being up. Portraits are fetched live from
+# Wikimedia; any that fail fall back to monograms rather than failing the build.
 
 version: 1.0
-runtime: python3
+runtime: python311
 
 build:
   commands:
     pre-build:
-      # Build the React bundle so FastAPI can serve it as static files.
-      - echo "Building frontend..."
-      - cd frontend && npm ci --no-audit --no-fund && npm run build && cd ..
+      # The Python image may not ship Node; Vite 5 needs Node 18+.
+      - command -v npm || dnf install -y nodejs npm
+      - (cd frontend && npm ci --no-audit --no-fund && npm run build)
     build:
-      - echo "Installing backend dependencies..."
-      - pip install -r backend/requirements-postgres.txt
-  env:
-    - name: NODE_VERSION
-      value: '22'
+      - pip3 install -r backend/requirements.txt
+      - (cd backend && python3 -m scripts.ingest && python3 -m scripts.fetch_portraits && python3 -m scripts.train_model)
 
 run:
-  runtime-version: 3.11
-  command: >-
-    sh -c "cd backend &&
-    uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2 --proxy-headers"
+  # Packages installed during the build stage do not carry over to the run
+  # image on this runtime, so they are installed again before start-up.
+  pre-run:
+    - pip3 install -r backend/requirements.txt
+  command: sh -c "cd backend && python3 -m uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 2 --proxy-headers"
   network:
     port: 8000
     env: PORT
@@ -34,18 +38,14 @@ run:
       value: production
     - name: DEBUG
       value: 'false'
-    - name: FRONTEND_DIST
-      value: /app/frontend/dist
     - name: AWS_REGION
       value: us-east-1
+    # The analyst uses the built-in grounded writer. Set to 'true' (and grant
+    # the instance role bedrock:InvokeModel) to answer with Claude on Bedrock.
     - name: ENABLE_BEDROCK
-      value: 'true'
-    - name: BEDROCK_MODEL_ID
-      value: us.anthropic.claude-sonnet-4-5-20250929-v1:0
+      value: 'false'
   secrets:
-    # Values are ARNs of AWS Secrets Manager secrets, resolved at start-up.
-    # Nothing sensitive is stored in this file or in the image.
-    - name: DB_SECRET_ARN
-      value: arn:aws:secretsmanager:us-east-1:000000000000:secret:apexstrategy/database
+    # Resolved from AWS Secrets Manager at start-up via the instance role.
+    # The ARN is not sensitive; the value never leaves Secrets Manager.
     - name: JWT_SECRET
-      value: arn:aws:secretsmanager:us-east-1:000000000000:secret:apexstrategy/jwt
+      value: arn:aws:secretsmanager:us-east-1:053578820492:secret:apexstrategy/jwt-nV2EJH

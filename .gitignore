@@ -20,7 +20,8 @@ frontend/dist/
 *.db
 *.sqlite3
 backend/artifacts/
-backend/data/cache/
+# backend/data/cache/ IS committed: the App Runner build ingests from it, so
+# deploys never depend on the Jolpica API being reachable.
 backend/data/exports/
 
 # Secrets -- never commit these

@@ -204,10 +204,9 @@ measurements before and after each fix.
 | S6 | **Medium** | **No security headers.** All six absent | CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy missing | `SecurityHeadersMiddleware`; CSP enforced in production, report-only in development | All present; CSP + HSTS confirmed in production mode |
 | S7 | **Medium** | **`DEBUG` defaulted to true**, so an unset variable would return exception text to clients | `debug: bool = Field(default=True)` | Default flipped to `false`; production refuses to start with it on | Validation errors only; no internals |
 | S8 | **Low** | **CORS permitted all methods and headers with credentials enabled** | `allow_methods=["*"]`, `allow_headers=["*"]` | Restricted to the methods and headers actually used; wildcard origin refused in production | Config guard rejects `*` |
+| S9 | **High** | **30 known vulnerabilities across 8 dependencies**, including 7 in PyJWT (the authentication library) and 7 in Starlette (the web framework core) | `pip-audit` | Upgraded the whole stack; see 4.2 | **0 known vulnerabilities** |
 
-| S9 | **High** | **30 known vulnerabilities across 8 dependencies**, including 7 in PyJWT (the authentication library) and 7 in Starlette (the web framework core) | `pip-audit` | Upgraded the whole stack; see 4.3 | **0 known vulnerabilities** |
-
-### 4.3 Dependency audit — and the Python version that blocked it
+### 4.2 Dependency audit — and the Python version that blocked it
 
 `pip-audit` reported **30 advisories across 8 packages**. The two that mattered
 most sat directly in the security path:
@@ -254,7 +253,7 @@ which is exactly the gap an audit is meant to find.
 
 `npm audit` and `pip-audit` now run in CI on every push.
 
-### 4.4 Attack classes probed — already defended
+### 4.3 Attack classes probed — already defended
 
 | Attack | Method | Result |
 |---|---|---|
@@ -265,7 +264,7 @@ which is exactly the gap an audit is meant to find.
 | **JWT tampering** | Stripped signature, foreign signing key, `alg: none`, expired token, missing `Bearer` prefix | All rejected. Algorithms are pinned and `exp`/`sub` are required |
 | **Oversized payloads** | 100k-character question, 500k-character comment | Rejected with HTTP 422 by schema bounds |
 
-### 4.5 Secrets handling
+### 4.4 Secrets handling
 
 - **No secrets in source control.** `git ls-files` confirms no `.env`, `.db` or
   key material is tracked; `.gitignore` excludes them.
@@ -373,4 +372,4 @@ make audit
 make test-all
 ```
 
-**Requires Python 3.11+.** See §4.3 for why.
+**Requires Python 3.11+.** See §4.2 for why.
