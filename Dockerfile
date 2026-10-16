@@ -40,6 +40,14 @@ RUN pip install --no-cache-dir -r requirements-postgres.txt
 COPY backend/ /app/backend/
 COPY --from=frontend /build/dist /app/frontend/dist
 
+# Bake the data and model into the image: ingest five seasons from the
+# committed API cache, fetch portraits (failures fall back to monograms) and
+# train. The service then starts with no database server or first-run step.
+RUN cd /app/backend \
+    && python -m scripts.ingest \
+    && python -m scripts.fetch_portraits \
+    && python -m scripts.train_model
+
 # Run as a non-root user.
 RUN useradd --create-home --uid 10001 apex \
     && mkdir -p /app/backend/artifacts /app/backend/data \

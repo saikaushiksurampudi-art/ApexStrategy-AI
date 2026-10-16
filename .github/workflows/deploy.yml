@@ -1,13 +1,13 @@
 name: Deploy to AWS App Runner
 
-# Manual only. The live demo deploys from source: App Runner watches main and
-# rebuilds on every push (see apprunner.yaml). This workflow is the container
-# path for the RDS-backed production setup in docs/DEPLOYMENT.md.
+# Every push to main builds the image and pushes it to ECR as :latest. The
+# App Runner service has automatic deployments on, so it picks up the new
+# image by itself. OIDC role, no long-lived AWS keys stored in GitHub.
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
-# Deployment uses an OIDC role rather than long-lived access keys, so no AWS
-# credentials are ever stored in GitHub.
 permissions:
   id-token: write
   contents: read
@@ -15,13 +15,11 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: apexstrategy-ai
-  APP_RUNNER_SERVICE: apexstrategy-ai
 
 jobs:
   deploy:
-    name: Build, push and deploy
+    name: Build and push image
     runs-on: ubuntu-latest
-    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -36,47 +34,9 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build and push image
-        id: build
         env:
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
         run: |
-          IMAGE="$REGISTRY/$ECR_REPOSITORY"
-          docker build -t "$IMAGE:$IMAGE_TAG" -t "$IMAGE:latest" .
-          docker push "$IMAGE:$IMAGE_TAG"
+          docker build -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+          docker push "$IMAGE:${{ github.sha }}"
           docker push "$IMAGE:latest"
-          echo "image=$IMAGE:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy to App Runner
-        uses: awslabs/amazon-app-runner-deploy@main
-        with:
-          service: ${{ env.APP_RUNNER_SERVICE }}
-          image: ${{ steps.build.outputs.image }}
-          access-role-arn: ${{ secrets.APPRUNNER_ECR_ACCESS_ROLE_ARN }}
-          instance-role-arn: ${{ secrets.APPRUNNER_INSTANCE_ROLE_ARN }}
-          region: ${{ env.AWS_REGION }}
-          port: 8000
-          # App Runner removes an instance from the load balancer if this path
-          # stops returning 200, so it must never depend on Bedrock or S3.
-          health-check-path: /api/health
-          cpu: 1
-          memory: 2
-          wait-for-service-stability-seconds: 600
-          copy-env-vars: |
-            ENVIRONMENT
-            DEBUG
-            AWS_REGION
-            ENABLE_BEDROCK
-            BEDROCK_MODEL_ID
-            S3_BUCKET
-          copy-secret-env-vars: |
-            DB_SECRET_ARN
-            JWT_SECRET
-        env:
-          ENVIRONMENT: production
-          DEBUG: 'false'
-          ENABLE_BEDROCK: 'true'
-          BEDROCK_MODEL_ID: us.anthropic.claude-sonnet-4-5-20250929-v1:0
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
-          DB_SECRET_ARN: ${{ secrets.DB_SECRET_ARN }}
-          JWT_SECRET: ${{ secrets.JWT_SECRET_ARN }}
