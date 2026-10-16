@@ -4,25 +4,41 @@ There are two deployment paths:
 
 | | Live demo (current) | Production (below) |
 |---|---|---|
-| Source | App Runner builds from GitHub `main` | GitHub Actions → ECR image |
-| Database | SQLite, built during deploy | RDS PostgreSQL |
+| Pipeline | push to `main` → GitHub Actions → ECR `:latest` → App Runner auto-deploy | same, plus RDS wiring |
+| Database | SQLite, baked into the image | RDS PostgreSQL |
 | Accounts & feedback | Reset on each deploy | Persistent |
 | AI analyst | Built-in grounded writer | Claude on Bedrock |
-| Extra AWS resources | One secret, one IAM role | RDS, VPC connector, S3, ECR, OIDC role |
 
-## Live demo: source deployment
+## Live demo: container deployment
 
-`apprunner.yaml` drives it. On every push to `main`, App Runner builds the
-frontend, ingests the five seasons from the committed API cache in
-`backend/data/cache`, fetches portraits, trains the model and starts uvicorn.
-The service needs only:
+Live at **https://tpmypw9vxt.us-east-1.awsapprunner.com**.
 
-- **Secret** `apexstrategy/jwt` in Secrets Manager (a random 48-byte key).
-- **Instance role** `apexstrategy-apprunner-instance`, trusted by
-  `tasks.apprunner.amazonaws.com`, allowed `secretsmanager:GetSecretValue`
-  on that one secret and nothing else.
+`.github/workflows/deploy.yml` builds the Dockerfile on every push to `main`
+and pushes `:latest` to ECR. The Dockerfile ingests five seasons from the
+committed API cache (`backend/data/cache`), fetches portraits and trains the
+model, so the image starts with its data. App Runner watches `:latest` and
+redeploys on each push.
+
+AWS resources:
+
+- **ECR** repository `apexstrategy-ai` (scan on push).
+- **OIDC provider** for `token.actions.githubusercontent.com` and role
+  `apexstrategy-github-deploy`, which can only push to that repository and
+  can only be assumed from this repo's `main` branch. No AWS keys in GitHub.
+  GitHub issues immutable subjects with numeric IDs
+  (`repo:owner@id/repo@id:ref:refs/heads/main`); the trust policy must match
+  that form, not the older `repo:owner/repo:...`.
+- **Access role** `apexstrategy-apprunner-ecr-access` (managed
+  `AWSAppRunnerServicePolicyForECRAccess`) for App Runner to pull the image.
+- **Instance role** `apexstrategy-apprunner-instance`, which can read the secret
+  `apexstrategy/jwt` and nothing else.
 - **Service** `apexstrategy-ai`: 1 vCPU / 2 GB, health check `GET /api/health`,
-  auto-deploy on.
+  automatic deployments on.
+
+Why not a source-code (`apprunner.yaml`) deployment: three attempts on the
+`python311` managed runtime failed in App Runner's internal `pre_build` step,
+with no log output, even with no custom pre-build commands. The container path
+has no such black box: the same image builds in CI first.
 
 ---
 
