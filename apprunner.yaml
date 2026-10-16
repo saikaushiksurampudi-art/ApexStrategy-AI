@@ -24,6 +24,7 @@ build:
       - sh -c "cd backend && python3 -m scripts.ingest && python3 -m scripts.fetch_portraits && python3 -m scripts.train_model"
 
 run:
+  runtime-version: 3.11
   # Packages installed during the build stage do not carry over to the run
   # image on this runtime, so they are installed again before start-up.
   pre-run:
