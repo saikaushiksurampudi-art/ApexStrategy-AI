@@ -13,7 +13,7 @@ htmlcov/
 
 # Node
 node_modules/
-frontend/dist/
+# frontend/dist/ IS committed: App Runner serves the prebuilt bundle.
 *.log
 
 # Local data & artifacts
